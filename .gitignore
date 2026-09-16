@@ -1,0 +1,19 @@
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and runtime output
+/vendor/
+*.log
+
+# User-generated uploads and generated cards
+/uploads/*
+!/uploads/.htaccess
+!/uploads/*/.htaccess
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

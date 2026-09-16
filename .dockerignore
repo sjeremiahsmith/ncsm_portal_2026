@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+.env.*
+uploads/*
+!uploads/.htaccess
+!uploads/*/.htaccess
+vendor/
+*.log

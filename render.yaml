@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: ncsm-portal
+    env: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: NCSM_APP_URL
+        sync: false
+      - key: NCSM_DB_HOST
+        sync: false
+      - key: NCSM_DB_PORT
+        value: "3306"
+      - key: NCSM_DB_NAME
+        sync: false
+      - key: NCSM_DB_USER
+        sync: false
+      - key: NCSM_DB_PASS
+        sync: false
+      - key: NCSM_SEED_PASSWORD
+        sync: false
+      - key: NCSM_UPLOAD_PATH
+        value: /var/www/html/uploads
+    disk:
+      name: ncsm-uploads
+      mountPath: /var/www/html/uploads
+      sizeGB: 10
