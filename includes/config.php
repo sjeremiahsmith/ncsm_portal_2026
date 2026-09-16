@@ -5,11 +5,18 @@ function configEnv($name, $default) {
     return ($value === false || trim($value) === '') ? $default : trim($value);
 }
 
-define('DB_HOST', configEnv('NCSM_DB_HOST', '127.0.0.1'));
-define('DB_PORT', configEnv('NCSM_DB_PORT', '3306'));
-define('DB_NAME', configEnv('NCSM_DB_NAME', 'ncsm_portal'));
-define('DB_USER', configEnv('NCSM_DB_USER', 'root'));
-define('DB_PASS', configEnv('NCSM_DB_PASS', ''));
+$databaseUrl = configEnv('NCSM_DATABASE_URL', configEnv('DATABASE_URL', ''));
+$databaseParts = $databaseUrl !== '' ? parse_url($databaseUrl) : false;
+$databaseQuery = [];
+if (is_array($databaseParts) && !empty($databaseParts['query'])) {
+    parse_str($databaseParts['query'], $databaseQuery);
+}
+define('DB_HOST', $databaseParts['host'] ?? configEnv('NCSM_DB_HOST', '127.0.0.1'));
+define('DB_PORT', (string)($databaseParts['port'] ?? configEnv('NCSM_DB_PORT', '5432')));
+define('DB_NAME', isset($databaseParts['path']) ? ltrim($databaseParts['path'], '/') : configEnv('NCSM_DB_NAME', 'ncsm_portal'));
+define('DB_USER', isset($databaseParts['user']) ? urldecode($databaseParts['user']) : configEnv('NCSM_DB_USER', 'postgres'));
+define('DB_PASS', isset($databaseParts['pass']) ? urldecode($databaseParts['pass']) : configEnv('NCSM_DB_PASS', ''));
+define('DB_SSLMODE', $databaseQuery['sslmode'] ?? configEnv('NCSM_DB_SSLMODE', ''));
 
 // Application configuration
 define('APP_NAME', 'National County Sports System');

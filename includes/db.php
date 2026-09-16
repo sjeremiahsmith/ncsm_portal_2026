@@ -7,8 +7,12 @@ class Database {
 
     private function __construct() {
         try {
+            $dsn = "pgsql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME;
+            if (DB_SSLMODE !== '') {
+                $dsn .= ';sslmode=' . DB_SSLMODE;
+            }
             $this->connection = new PDO(
-                "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+                $dsn,
                 DB_USER,
                 DB_PASS,
                 [
@@ -53,8 +57,12 @@ class Database {
     }
 
     public function insert($sql, $params = []) {
-        $this->query($sql, $params);
-        return $this->connection->lastInsertId();
+        if (stripos($sql, 'RETURNING') === false) {
+            $sql .= ' RETURNING id';
+        }
+        $stmt = $this->query($sql, $params);
+        $row = $stmt->fetch();
+        return $row ? $row['id'] : null;
     }
 
     public function update($sql, $params = []) {

@@ -86,11 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $reportId = $existing['id'];
         } else {
-            $db->insert(
+            $reportId = $db->insert(
                 "INSERT INTO match_reports (match_id, commissioner_id, home_yellow_cards, home_red_cards, away_yellow_cards, away_red_cards, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [$matchId, $_SESSION['user_id'], $homeYellow, $homeRed, $awayYellow, $awayRed, $notes]
             );
-            $reportId = $db->getConnection()->lastInsertId();
         }
 
         // Save carded players

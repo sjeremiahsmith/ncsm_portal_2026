@@ -32,8 +32,7 @@ $sportIds = [];
 foreach ($sports as $s) {
     $existing = $db->fetchOne("SELECT id FROM sports_disciplines WHERE association_code = ?", [$s[2]]);
     if (!$existing) {
-        $db->insert("INSERT INTO sports_disciplines (name, association_name, association_code) VALUES (?, ?, ?)", $s);
-        $sportIds[$s[2]] = $db->getConnection()->lastInsertId();
+        $sportIds[$s[2]] = $db->insert("INSERT INTO sports_disciplines (name, association_name, association_code) VALUES (?, ?, ?)", $s);
     } else {
         $sportIds[$s[2]] = $existing['id'];
     }

@@ -36,16 +36,15 @@ $source = new PDO(
 );
 $target = getDb()->getConnection();
 $tables = [
-    'users', 'counties', 'sports_disciplines', 'players', 'approval_workflow',
+    'counties', 'sports_disciplines', 'users', 'players', 'approval_workflow',
     'matches', 'match_goals', 'match_reports', 'match_report_cards',
     'match_squad_players', 'documents', 'notifications', 'activity_logs',
     'contact_messages', 'gallery_photos', 'videos',
 ];
 $batchSize = 250;
 
-$target->exec('SET FOREIGN_KEY_CHECKS = 0');
-try {
-    foreach ($tables as $table) {
+$booleanColumns = ['is_read'];
+foreach ($tables as $table) {
         $columns = $source->query("SHOW COLUMNS FROM `{$table}`")->fetchAll();
         if (!$columns) {
             fwrite(STDERR, "Skipping missing source table: {$table}\n");
@@ -53,25 +52,32 @@ try {
         }
 
         $columnNames = array_map(static fn(array $column): string => $column['Field'], $columns);
-        $quotedColumns = implode(', ', array_map(static fn(string $column): string => "`{$column}`", $columnNames));
+        $sourceColumns = implode(', ', array_map(static fn(string $column): string => "`{$column}`", $columnNames));
+        $targetColumns = implode(', ', array_map(static fn(string $column): string => '"' . $column . '"', $columnNames));
         $placeholders = implode(', ', array_fill(0, count($columnNames), '?'));
-        $insert = $target->prepare("INSERT IGNORE INTO `{$table}` ({$quotedColumns}) VALUES ({$placeholders})");
+        $insert = $target->prepare("INSERT INTO \"{$table}\" ({$targetColumns}) VALUES ({$placeholders}) ON CONFLICT DO NOTHING");
         $offset = 0;
         $copied = 0;
 
         do {
-            $rows = $source->query("SELECT {$quotedColumns} FROM `{$table}` LIMIT {$batchSize} OFFSET {$offset}")->fetchAll();
+            $rows = $source->query("SELECT {$sourceColumns} FROM `{$table}` LIMIT {$batchSize} OFFSET {$offset}")->fetchAll();
             foreach ($rows as $row) {
-                $insert->execute(array_values($row));
+                $values = array_values($row);
+                foreach ($booleanColumns as $booleanColumn) {
+                    $columnIndex = array_search($booleanColumn, $columnNames, true);
+                    if ($columnIndex !== false && $values[$columnIndex] !== null) {
+                        $values[$columnIndex] = (bool)$values[$columnIndex];
+                    }
+                }
+                $insert->execute($values);
                 $copied++;
             }
             $offset += $batchSize;
         } while (count($rows) === $batchSize);
 
+        $target->query("SELECT setval(pg_get_serial_sequence('{$table}', 'id'), GREATEST(COALESCE(MAX(id), 0) + 1, 1), false) FROM \"{$table}\"");
+
         echo "{$table}: {$copied} rows copied\n";
-    }
-} finally {
-    $target->exec('SET FOREIGN_KEY_CHECKS = 1');
 }
 
 echo "Existing database migration complete.\n";

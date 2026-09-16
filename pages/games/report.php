@@ -49,11 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $reportId = $editId;
                 $msg = '<div class="alert alert-success">Report updated successfully.</div>';
             } else {
-                $db->insert(
+                $reportId = $db->insert(
                     "INSERT INTO match_reports (match_id, commissioner_id, home_yellow_cards, home_red_cards, away_yellow_cards, away_red_cards, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     [$match_id, $_SESSION['user_id'], $home_yellow, $home_red, $away_yellow, $away_red, $notes]
                 );
-                $reportId = $db->getConnection()->lastInsertId();
                 logActivity('create_match_report', "Submitted report for match #$match_id");
                 $msg = '<div class="alert alert-success">Report submitted successfully.</div>';
             }

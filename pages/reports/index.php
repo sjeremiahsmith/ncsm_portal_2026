@@ -55,11 +55,11 @@ $groupStats = $db->fetchAll(
 
 $monthFilterAssoc = hasRole('association_admin') ? " WHERE p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
 $monthRegistrations = $db->fetchAll(
-    "SELECT DATE_FORMAT(p.created_at, '%Y-%m') as month, COUNT(*) as count
+    "SELECT TO_CHAR(p.created_at, 'YYYY-MM') as month, COUNT(*) as count
      FROM players p" .
      ($groupFilter ? " JOIN counties c ON p.county_id = c.id AND c.group_label = '" . $groupFilter . "'" : "") .
      ($monthFilterAssoc ? " $monthFilterAssoc" : "") .
-     " GROUP BY DATE_FORMAT(p.created_at, '%Y-%m')
+    " GROUP BY TO_CHAR(p.created_at, 'YYYY-MM')
      ORDER BY month DESC LIMIT 12"
 );
 

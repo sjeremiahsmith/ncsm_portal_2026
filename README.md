@@ -50,7 +50,7 @@ A full-featured web-based sports management system for the Ministry of Youth & S
 | Component | Technology |
 |-----------|-----------|
 | **Backend** | PHP 8.x (PDO, prepared statements) |
-| **Database** | MySQL / MariaDB (InnoDB, utf8mb4) |
+| **Database** | PostgreSQL (Render PostgreSQL) |
 | **Server** | Apache (XAMPP) |
 | **CSS** | Bootstrap 5.3.2, Bootstrap Icons 1.11.3 |
 | **JavaScript** | jQuery 3.7.1, Select2 4.1.0, Chart.js 4.4.1 |
@@ -61,7 +61,7 @@ A full-featured web-based sports management system for the Ministry of Youth & S
 ### Prerequisites
 - XAMPP (or any Apache + PHP + MySQL stack)
 - PHP 8.0+
-- MySQL 5.7+ or MariaDB 10.3+
+- PostgreSQL 13+
 
 ### Setup
 ```bash
@@ -69,20 +69,15 @@ A full-featured web-based sports management system for the Ministry of Youth & S
 git clone https://github.com/your-username/sports-meet-portal.git
 # or copy the folder to C:\xampp\htdocs\<your-folder>
 
-# 2. Create/select the target MySQL database and import the schema
-# Open phpMyAdmin (http://localhost/phpmyadmin) and run:
-#   database/schema.sql
-# Or via command line:
-mysql -u root -p ncsm_portal < database/schema.sql
+# 2. Create/select the target PostgreSQL database and import the schema
+psql "$DATABASE_URL" -f database/schema.sql
 
-# 3. Configure database credentials (if different from defaults)
-# Edit: includes/config.php
-#   DB_HOST, DB_NAME, DB_USER, DB_PASS
-# NOTE: Set DB_NAME to the database name supplied by your host.
-# Alternatively, set NCSM_DB_HOST, NCSM_DB_PORT, NCSM_DB_NAME, NCSM_DB_USER, and NCSM_DB_PASS
-# as server environment variables; these override the local XAMPP defaults.
+Do not import `database/sports_meet_portal.sql`; it is the legacy MySQL dump kept only
+as a possible source for the migration utility.
 
-# 4. Start Apache and MySQL from XAMPP Control Panel
+# 3. Configure the PostgreSQL connection with DATABASE_URL or NCSM_DATABASE_URL.
+
+# 4. Start Apache and PostgreSQL locally, or use Docker.
 
 # 5. Seed the database with default data from the command line
 $env:NCSM_SEED_PASSWORD = "use-a-unique-password-at-least-12-characters"
@@ -98,30 +93,26 @@ php seed_cli.php
 
 ## Render Deployment
 
-This repository includes a `Dockerfile` and `render.yaml` for a Docker web service.
-Render's managed database is PostgreSQL, while this application requires MySQL/MariaDB,
-so provide an external MySQL-compatible database and set these Render environment variables:
+This repository includes a `Dockerfile` and `render.yaml` for a Docker web service and
+Render PostgreSQL database:
 
 - `NCSM_APP_URL` — the complete HTTPS application URL with no trailing slash
-- `NCSM_DB_HOST`, `NCSM_DB_PORT`, `NCSM_DB_NAME`, `NCSM_DB_USER`, `NCSM_DB_PASS`
+- `DATABASE_URL` — Render's internal PostgreSQL connection string
 - `NCSM_SEED_PASSWORD` — a unique password of at least 12 characters
 
 ### Required deployment order
 
-1. Create an external MySQL/MariaDB database. Render's native database service is PostgreSQL
-	and cannot be used by this PDO MySQL application without a database rewrite.
-2. Rotate the old database password at the database provider before creating the Render
-	environment variables. The old password was previously committed and must not be reused.
-3. Set every `sync: false` variable shown in `render.yaml`: `NCSM_APP_URL`, `NCSM_DB_HOST`,
-	`NCSM_DB_NAME`, `NCSM_DB_USER`, `NCSM_DB_PASS`, and `NCSM_SEED_PASSWORD`. Keep secrets in
-	Render's environment settings, never in Git.
-4. Create the target database, then import the schema into that selected database:
+1. Deploy the blueprint in `render.yaml`. It creates a Render PostgreSQL database and injects
+	its `connectionString` into `DATABASE_URL`. Set the remaining `sync: false` variables:
+	`NCSM_APP_URL` and `NCSM_SEED_PASSWORD`. Keep secrets in Render's environment settings,
+	never in Git.
+2. Import the schema into Render PostgreSQL:
 
 	```bash
-	mysql -h "$NCSM_DB_HOST" -P "$NCSM_DB_PORT" -u "$NCSM_DB_USER" -p "$NCSM_DB_NAME" < database/schema.sql
+	psql "$DATABASE_URL" -f database/schema.sql
 	```
 
-5. If this is a new installation with no existing data, seed once after the schema import.
+3. If this is a new installation with no existing data, seed once after the schema import.
 	Run this from a trusted machine with the target database environment variables set:
 
 	```bash
@@ -129,9 +120,10 @@ so provide an external MySQL-compatible database and set these Render environmen
 	```
 
 	Change the `admin` password immediately after the first login.
-6. For existing records, do not run the schema against the old database. Import the schema
-	into the new empty database, set `NCSM_SOURCE_DB_HOST`, `NCSM_SOURCE_DB_PORT`,
-	`NCSM_SOURCE_DB_NAME`, `NCSM_SOURCE_DB_USER`, and `NCSM_SOURCE_DB_PASS`, then run:
+4. For existing MySQL records, do not run the PostgreSQL schema against the old database.
+	Import the schema into the new Render database, set `NCSM_SOURCE_DB_HOST`,
+	`NCSM_SOURCE_DB_PORT`, `NCSM_SOURCE_DB_NAME`, `NCSM_SOURCE_DB_USER`, and
+	`NCSM_SOURCE_DB_PASS`, and keep `DATABASE_URL` set to Render PostgreSQL, then run:
 
 	```bash
 	php database/migrate_existing.php
@@ -141,7 +133,7 @@ so provide an external MySQL-compatible database and set these Render environmen
 	IDs and skips duplicate rows. Take a backup first and verify row counts before switching
 	traffic. After migration, run `php seed_cli.php` once only if default reference data or
 	accounts are missing.
-7. Uploads are intentionally excluded from Git and Docker. Copy the old uploads directory
+5. Uploads are intentionally excluded from Git and Docker. Copy the old uploads directory
 	to the persistent disk using the configured target path:
 
 	```bash
@@ -196,7 +188,7 @@ after the first login and do not commit that value to the repository.
 
 ## Database Overview
 
-**Database name:** supplied through `NCSM_DB_NAME`.
+**Database name:** supplied through Render's `DATABASE_URL`.
 
 ### Tables (16)
 | Table | Purpose |
