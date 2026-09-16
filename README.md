@@ -72,6 +72,9 @@ git clone https://github.com/your-username/sports-meet-portal.git
 # 2. Create/select the target PostgreSQL database and import the schema
 psql "$DATABASE_URL" -f database/schema.sql
 
+Run this from a machine with the PostgreSQL client installed, or use Render's PostgreSQL
+database connection tools. The web container only needs the PHP `pdo_pgsql` extension.
+
 Do not import `database/sports_meet_portal.sql`; it is the legacy MySQL dump kept only
 as a possible source for the migration utility.
 
