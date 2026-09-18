@@ -211,3 +211,5 @@ CREATE INDEX IF NOT EXISTS idx_players_status ON players(status);
 CREATE INDEX IF NOT EXISTS idx_matches_sport ON matches(sport_discipline_id);
 CREATE INDEX IF NOT EXISTS idx_matches_group ON matches(group_label);
 CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status);
+extension=pdo_pgsql
+extension=pgsql
