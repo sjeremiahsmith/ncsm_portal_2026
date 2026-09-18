@@ -53,6 +53,11 @@ if (!$existingAdmin) {
         "INSERT INTO users (username, password, email, full_name, role, status) VALUES (?, ?, ?, ?, ?, 'active')",
         ['admin', $adminPass, 'admin@sportsmeet.gov.lr', 'System Administrator', 'super_admin']
     );
+} elseif (getenv('NCSM_RESET_ADMIN') === 'true') {
+    $db->query(
+        "UPDATE users SET password = ?, status = 'active', role = 'super_admin' WHERE username = 'admin'",
+        [$adminPass]
+    );
 }
 echo "Admin user created. Change the seed password after first login.\n";
 
