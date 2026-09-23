@@ -59,7 +59,7 @@ A full-featured web-based sports management system for the Ministry of Youth & S
 ## Installation
 
 ### Prerequisites
-- XAMPP (or any Apache + PHP + MySQL stack)
+- XAMPP (or any Apache + PHP stack)
 - PHP 8.0+
 - PostgreSQL 13+
 
@@ -244,7 +244,7 @@ after the first login and do not commit that value to the repository.
 │   ├── css/style.css        # Custom styles
 │   ├── js/main.js           # jQuery UI interactions, Chart.js
 │   └── images/              # Logos, county flags, default avatar
-├── database/schema.sql      # Full MySQL schema
+├── database/schema.sql      # Full PostgreSQL schema
 ├── includes/
 │   ├── config.php           # Constants, session start
 │   ├── db.php               # PDO singleton
