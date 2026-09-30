@@ -12,8 +12,16 @@ $liveMatches = $db->fetchAll("
     JOIN sports_disciplines s ON m.sport_discipline_id = s.id
     JOIN counties c1 ON m.home_county_id = c1.id
     JOIN counties c2 ON m.away_county_id = c2.id
-    WHERE m.status IN ('live', 'completed')
-    ORDER BY FIELD(m.status, 'live', 'completed'), m.match_date DESC
+
+    WHERE m.status IN ('live', 'scheduled', 'completed')
+    ORDER BY CASE
+        WHEN m.status = 'live' THEN 1
+        WHEN m.status = 'scheduled' THEN 2
+        WHEN m.status = 'completed' THEN 3
+        ELSE 4
+    END,
+    CASE WHEN m.status = 'completed' THEN m.match_date END DESC,
+    CASE WHEN m.status <> 'completed' THEN m.match_date END ASC
 ");
 
 $reports = [];
@@ -38,6 +46,7 @@ include __DIR__ . '/../templates/public_header.php';
 .modal-stat-label { font-size:0.75rem; color:#6c757d; text-align:center; flex:1; }
 .modal-stat-val { font-size:0.85rem; font-weight:700; width:40px; text-align:center; }
 .status-live { background: #dc3545; color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; animation: pulse 1.5s infinite; }
+.status-scheduled { background: #6c757d; color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; }
 .status-completed { background: #198754; color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; }
 .team-name { font-size: 0.9rem; font-weight: 600; }
 .goal-scorer { font-size: 0.72rem; padding: 1px 0; }
@@ -78,12 +87,14 @@ include __DIR__ . '/../templates/public_header.php';
             $isLive = $m['status'] === 'live';
         ?>
         <div class="col-md-6 col-lg-4">
-            <a href="<?= APP_URL ?>pages/public_match_stats.php?=<?= $m['id'] ?>" class="text-decoration-none">
+            <a href="<?= APP_URL ?>pages/public_match_stats.php?id=<?= (int)$m['id'] ?>" class="text-decoration-none">
             <div class="card match-card shadow-sm h-100">
                 <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
                     <small class="opacity-75"><?= sanitize($m['sport_name']) ?> &middot; <?= sanitize($m['group_label']) ?> &middot; <?= sanitize($m['round']) ?></small>
                     <?php if ($isLive): ?>
                     <span class="status-live"><i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>LIVE</span>
+                    <?php elseif ($m['status'] === 'scheduled'): ?>
+                    <span class="status-scheduled"><i class="bi bi-clock me-1"></i>UPCOMING</span>
                     <?php else: ?>
                     <span class="status-completed"><i class="bi bi-check-circle me-1"></i>FT</span>
                     <?php endif; ?>
