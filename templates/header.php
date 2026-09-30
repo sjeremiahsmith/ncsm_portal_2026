@@ -212,6 +212,13 @@
                                 <i class="bi bi-person me-2"></i>My Profile
                             </a>
                         </li>
+                        <?php if (hasRole(['super_admin'])): ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= APP_URL ?>pages/users/manage.php">
+                                <i class="bi bi-eye me-2"></i>See Users
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?= APP_URL ?>pages/change_password.php">
                                 <i class="bi bi-key me-2"></i>Change Password
