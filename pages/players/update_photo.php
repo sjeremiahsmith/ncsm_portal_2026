@@ -42,14 +42,13 @@ if (!$result['success']) {
 }
 
 if ($player['photo_path']) {
-    $oldFile = __DIR__ . '/../../' . $player['photo_path'];
-    if (file_exists($oldFile)) {
+    $oldFile = getPlayerPhotoFilePath($player['photo_path']);
+    if ($oldFile) {
         unlink($oldFile);
     }
 }
 
-$relativePath = 'uploads/photos/' . $result['filename'];
-$db->update("UPDATE players SET photo_path = ? WHERE id = ?", [$relativePath, $playerId]);
+$db->update("UPDATE players SET photo_path = ? WHERE id = ?", [$result['path'], $playerId]);
 logActivity('update_photo', 'Updated photo for player: ' . $player['full_name']);
 setFlash('success', 'Player photo updated successfully.');
 redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);

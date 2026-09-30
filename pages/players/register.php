@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$upload['success']) {
             $errors[] = $upload['error'];
         } else {
-            $photo_path = $upload['filename'];
+            $photo_path = $upload['path'];
         }
     }
 

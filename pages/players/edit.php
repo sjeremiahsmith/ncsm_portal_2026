@@ -72,10 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$upload['success']) {
             $errors[] = $upload['error'];
         } else {
-            if ($player['photo_path'] && file_exists(PHOTO_PATH . $player['photo_path'])) {
-                unlink(PHOTO_PATH . $player['photo_path']);
+            $oldPhotoFile = getPlayerPhotoFilePath($player['photo_path']);
+            if ($oldPhotoFile) {
+                unlink($oldPhotoFile);
             }
-            $photo_path = $upload['filename'];
+            $photo_path = $upload['path'];
         }
     }
 
@@ -128,7 +129,7 @@ $pageTitle = 'Edit Player';
                         <div class="col-md-3 text-center">
                             <label class="form-label d-block">Photo</label>
                             <div class="photo-upload">
-                                <img src="<?= $player['photo_path'] ? APP_URL . 'uploads/photos/' . $player['photo_path'] : APP_URL . 'assets/images/default-avatar.svg' ?>" class="photo-preview" id="photoPreview">
+                                <img src="<?= getPlayerPhotoUrl($player['photo_path']) ?>" class="photo-preview" id="photoPreview">
                                 <input type="file" name="photo" class="photo-upload-input d-none" accept="image/jpeg,image/png,image/gif">
                                 <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="$('.photo-upload-input').click()"><i class="bi bi-camera"></i> Change Photo</button>
                             </div>

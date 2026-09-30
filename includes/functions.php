@@ -156,7 +156,11 @@ function uploadPhoto($file) {
     if (!is_dir(PHOTO_PATH)) mkdir(PHOTO_PATH, 0755, true);
 
     if (move_uploaded_file($file['tmp_name'], $dest)) {
-        return ['success' => true, 'filename' => $filename];
+        return [
+            'success' => true,
+            'filename' => $filename,
+            'path' => 'uploads/photos/' . $filename,
+        ];
     }
     return ['success' => false, 'error' => 'Failed to save file.'];
 }
@@ -406,9 +410,33 @@ function verifyCsrfToken($token) {
     return is_string($token) && isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
+function normalizePlayerPhotoPath($photoPath) {
+    $photoPath = trim((string)$photoPath);
+    if ($photoPath === '') {
+        return '';
+    }
+
+    if (strpos($photoPath, 'uploads/photos/') === 0) {
+        return $photoPath;
+    }
+
+    return 'uploads/photos/' . ltrim($photoPath, '/\\');
+}
+
+function getPlayerPhotoFilePath($photoPath) {
+    $normalizedPath = normalizePlayerPhotoPath($photoPath);
+    if ($normalizedPath === '') {
+        return '';
+    }
+
+    $fullPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $normalizedPath);
+    return file_exists($fullPath) ? $fullPath : '';
+}
+
 function getPlayerPhotoUrl($photoPath) {
-    if ($photoPath && file_exists(PHOTO_PATH . $photoPath)) {
-        return APP_URL . 'uploads/photos/' . $photoPath;
+    $normalizedPath = normalizePlayerPhotoPath($photoPath);
+    if ($normalizedPath !== '' && getPlayerPhotoFilePath($normalizedPath)) {
+        return APP_URL . $normalizedPath;
     }
     return APP_URL . 'assets/images/default-avatar.svg';
 }
@@ -484,9 +512,7 @@ function generatePlayerCard($playerId, $mode = 'file') {
 
     $base = __DIR__ . '/..';
     $logoPath = $base . '/assets/images/ncsm.png';
-    $photoPath = $player['photo_path'] && file_exists($base . '/uploads/photos/' . $player['photo_path'])
-        ? $base . '/uploads/photos/' . $player['photo_path']
-        : $base . '/assets/images/default-avatar.svg';
+    $photoPath = getPlayerPhotoFilePath($player['photo_path']) ?: $base . '/assets/images/default-avatar.svg';
     $flagPath = $flagUrl ? $base . '/assets/images/' . basename(parse_url($flagUrl, PHP_URL_PATH)) : '';
 
     $dob = $player['date_of_birth'] ? date('M d, Y', strtotime($player['date_of_birth'])) : 'N/A';
@@ -831,9 +857,7 @@ function generatePlayerCardImage($playerId, $format = 'png') {
     imagerectangle($img, $photoX - 6, $photoY - 6, $photoX + $photoW + 6, $photoY + $photoH + 6, $gold);
     imagerectangle($img, $photoX - 4, $photoY - 4, $photoX + $photoW + 4, $photoY + $photoH + 4, $goldLight);
 
-    $photoPath2 = $player['photo_path'] && file_exists($baseDir . '/uploads/photos/' . $player['photo_path'])
-        ? $baseDir . '/uploads/photos/' . $player['photo_path']
-        : '';
+    $photoPath2 = getPlayerPhotoFilePath($player['photo_path']);
     $srcImg = false;
     if ($photoPath2) {
         $pExt = strtolower(pathinfo($photoPath2, PATHINFO_EXTENSION));

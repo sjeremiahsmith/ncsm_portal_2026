@@ -16,8 +16,8 @@ if (!$player) {
 }
 
 if ($player['photo_path']) {
-    $photoFile = __DIR__ . '/../../' . $player['photo_path'];
-    if (file_exists($photoFile)) {
+    $photoFile = getPlayerPhotoFilePath($player['photo_path']);
+    if ($photoFile) {
         unlink($photoFile);
     }
 }
