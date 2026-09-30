@@ -11,12 +11,14 @@ $sports = getSports();
 $errors = [];
 $validRoles = ['super_admin', 'county_coordinator', 'association_admin', 'match_commissioner'];
 $validStatuses = ['active', 'inactive'];
+$showCreateForm = isset($_GET['create']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create_user') {
+        $showCreateForm = true;
         $username = sanitize($_POST['username'] ?? '');
         $fullName = sanitize($_POST['full_name'] ?? '');
         $email = sanitize($_POST['email'] ?? '');
@@ -72,6 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
         $associationId = (int)($_POST['association_id'] ?? 0);
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
         if ($id <= 0) $errors[] = 'Invalid user selected.';
         if ($username === '') $errors[] = 'Username is required.';
@@ -81,6 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'association_admin' && $associationId <= 0) $errors[] = 'Association is required for association admins.';
+        if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
+        if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
 
         $existingUsername = $db->fetchOne("SELECT id FROM users WHERE username = ? AND id <> ?", [$username, $id]);
         if ($existingUsername) $errors[] = 'That username is already in use.';
@@ -96,10 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $associationId = null;
             }
 
-            $db->update(
-                "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, association_id = ?, status = ?, updated_at = NOW() WHERE id = ?",
-                [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $associationId, $status, $id]
-            );
+            if ($password !== '') {
+                $db->update(
+                    "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, association_id = ?, status = ?, password = ?, updated_at = NOW() WHERE id = ?",
+                    [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $associationId, $status, password_hash($password, PASSWORD_DEFAULT), $id]
+                );
+            } else {
+                $db->update(
+                    "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, association_id = ?, status = ?, updated_at = NOW() WHERE id = ?",
+                    [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $associationId, $status, $id]
+                );
+            }
             logActivity('update_user', "Updated user #{$id} ({$username})");
             setFlash('success', 'User updated successfully.');
             redirect(APP_URL . 'pages/users/manage.php');
@@ -174,6 +187,12 @@ $pageActions = '<a href="' . APP_URL . 'pages/dashboard.php" class="btn btn-outl
 include __DIR__ . '/../../templates/header.php';
 ?>
 
+<style>
+.password-toggle-btn {
+    min-width: 46px;
+}
+</style>
+
 <?php if ($msg = getFlash('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show"><?= $msg ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 <?php endif; ?>
@@ -189,9 +208,16 @@ include __DIR__ . '/../../templates/header.php';
 <?php endif; ?>
 
 <div class="card mb-4">
-    <div class="card-header bg-white">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>Add New User</h5>
+        <div class="d-flex gap-2">
+            <a href="<?= APP_URL ?>pages/users/manage.php?create=1" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Open Form</a>
+            <?php if ($showCreateForm): ?>
+            <a href="<?= APP_URL ?>pages/users/manage.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Close</a>
+            <?php endif; ?>
+        </div>
     </div>
+    <?php if ($showCreateForm): ?>
     <div class="card-body">
         <form method="POST" class="row g-3">
             <?= csrfField() ?>
@@ -249,17 +275,29 @@ include __DIR__ . '/../../templates/header.php';
             </div>
             <div class="col-md-3">
                 <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" required>
+                <div class="input-group">
+                    <input type="password" name="password" class="form-control js-password-field" required>
+                    <button type="button" class="btn btn-outline-secondary password-toggle-btn js-password-toggle" title="Show or hide password"><i class="bi bi-eye"></i></button>
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Confirm Password</label>
-                <input type="password" name="confirm_password" class="form-control" required>
+                <div class="input-group">
+                    <input type="password" name="confirm_password" class="form-control js-password-field" required>
+                    <button type="button" class="btn btn-outline-secondary password-toggle-btn js-password-toggle" title="Show or hide password"><i class="bi bi-eye"></i></button>
+                </div>
             </div>
-            <div class="col-12 d-flex justify-content-end">
+            <div class="col-12 d-flex justify-content-end gap-2">
+                <a href="<?= APP_URL ?>pages/users/manage.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Create User</button>
             </div>
         </form>
     </div>
+    <?php else: ?>
+    <div class="card-body text-muted small">
+        The create-user form is closed. Click <strong>Open Form</strong> to add a new user.
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php if ($editUser): ?>
@@ -323,7 +361,22 @@ include __DIR__ . '/../../templates/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-6 d-flex align-items-end justify-content-end">
+            <div class="col-md-3">
+                <label class="form-label">New Password</label>
+                <div class="input-group">
+                    <input type="password" name="password" class="form-control js-password-field" placeholder="Leave blank to keep current">
+                    <button type="button" class="btn btn-outline-secondary password-toggle-btn js-password-toggle" title="Show or hide password"><i class="bi bi-eye"></i></button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Confirm Password</label>
+                <div class="input-group">
+                    <input type="password" name="confirm_password" class="form-control js-password-field" placeholder="Repeat new password">
+                    <button type="button" class="btn btn-outline-secondary password-toggle-btn js-password-toggle" title="Show or hide password"><i class="bi bi-eye"></i></button>
+                </div>
+            </div>
+            <div class="col-md-6 d-flex align-items-end justify-content-end gap-2">
+                <a href="<?= APP_URL ?>pages/users/manage.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Changes</button>
             </div>
         </form>
@@ -351,6 +404,7 @@ include __DIR__ . '/../../templates/header.php';
                             <th>Role</th>
                             <th>County</th>
                             <th>Association</th>
+                            <th>Password</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th class="text-end">Actions</th>
@@ -371,6 +425,7 @@ include __DIR__ . '/../../templates/header.php';
                             <td><?= sanitize(getRoleLabel($listedUser['role'])) ?></td>
                             <td><?= sanitize($listedUser['county_name'] ?? '—') ?></td>
                             <td><?= sanitize($listedUser['association_name'] ?? '—') ?></td>
+                            <td><small class="text-muted">Stored securely as a hash</small></td>
                             <td><span class="badge bg-<?= $listedUser['status'] === 'active' ? 'success' : 'secondary' ?>"><?= sanitize($listedUser['status']) ?></span></td>
                             <td><small class="text-muted"><?= formatDate($listedUser['created_at'], 'M d, Y') ?></small></td>
                             <td class="text-end">
@@ -402,5 +457,25 @@ include __DIR__ . '/../../templates/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.js-password-toggle').forEach(function(button) {
+    button.addEventListener('click', function() {
+        var input = button.parentElement.querySelector('.js-password-field');
+        var icon = button.querySelector('i');
+        if (!input || !icon) return;
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+});
+</script>
 
 <?php include __DIR__ . '/../../templates/footer.php'; ?>
