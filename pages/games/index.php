@@ -141,45 +141,49 @@ foreach ($liveMatches as $m) {
 $pageTitle = 'Games & Live Scores';
 
 function computeMatchPhasePHP($m) {
-    $FIRST_HALF = 47 * 60;
+    $FIRST_HALF = 45 * 60;
     $HALFTIME = 15 * 60;
-    $SECOND_HALF = 48 * 60;
+    $SECOND_HALF_START = $FIRST_HALF + $HALFTIME;
+    $MATCH_END = 90 * 60;
     if ($m['status'] === 'scheduled') return ['phase' => 'pre', 'display' => '--:--', 'periodLabel' => 'Scheduled'];
     if ($m['status'] === 'completed') return ['phase' => 'fulltime', 'display' => 'FT', 'periodLabel' => 'Full Time'];
     $kickoff = $m['timer_kickoff'] ?? null;
     $offset = (int)($m['timer_offset'] ?? 0);
     if (!$kickoff) {
         $paused = $offset;
-        $mins = floor($paused / 60);
-        $secs = $paused % 60;
+        $displaySeconds = $paused;
         $label = '1st Half (Paused)';
-        if ($paused >= $FIRST_HALF && $paused < $FIRST_HALF + $HALFTIME) $label = 'Half Time (Paused)';
-        elseif ($paused >= $FIRST_HALF + $HALFTIME) $label = '2nd Half (Paused)';
+        if ($paused >= $FIRST_HALF && $paused < $SECOND_HALF_START) {
+            $displaySeconds = $paused - $FIRST_HALF;
+            $label = 'Half Time (Paused)';
+        } elseif ($paused >= $SECOND_HALF_START) {
+            $displaySeconds = $paused - $HALFTIME;
+            $label = $displaySeconds > $MATCH_END ? 'Added Time (Paused)' : '2nd Half (Paused)';
+        }
+        $mins = floor($displaySeconds / 60);
+        $secs = $displaySeconds % 60;
         return ['phase' => 'paused', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => $label];
     }
     $diff = time() - strtotime($kickoff) + $offset;
     if ($diff <= $FIRST_HALF) {
         $mins = floor($diff / 60);
         $secs = $diff % 60;
-        $label = '1st Half';
-        if ($mins >= 45) $label = '1st Half + ' . ($mins - 44) . "'";
-        return ['phase' => '1st', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => $label];
+        return ['phase' => '1st', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => '1st Half'];
     }
-    if ($diff <= $FIRST_HALF + $HALFTIME) {
+    if ($diff < $SECOND_HALF_START) {
         $ht = $diff - $FIRST_HALF;
         $mins = floor($ht / 60);
         $secs = $ht % 60;
         return ['phase' => 'halftime', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => 'Half Time'];
     }
-    if ($diff <= $FIRST_HALF + $HALFTIME + $SECOND_HALF) {
-        $sec = $diff - $FIRST_HALF - $HALFTIME;
-        $mins = floor($sec / 60);
-        $secs = $sec % 60;
-        $label = '2nd Half';
-        if ($mins >= 45) $label = '2nd Half + ' . ($mins - 44) . "'";
-        return ['phase' => '2nd', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => $label];
-    }
-    return ['phase' => 'fulltime', 'display' => 'FT', 'periodLabel' => 'Full Time'];
+    $matchClock = $diff - $HALFTIME;
+    $mins = floor($matchClock / 60);
+    $secs = $matchClock % 60;
+    return [
+        'phase' => $matchClock > $MATCH_END ? 'added' : '2nd',
+        'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT),
+        'periodLabel' => $matchClock > $MATCH_END ? 'Added Time' : '2nd Half'
+    ];
 }
 
 function getTimerClassPHP($phase) {
@@ -194,6 +198,7 @@ function getPeriodBadgeClassPHP($phase) {
     if ($phase === 'halftime') return 'period-badge period-halftime';
     if ($phase === 'paused') return 'period-badge period-halftime';
     if ($phase === '2nd') return 'period-badge period-2nd';
+    if ($phase === 'added') return 'period-badge period-added';
     return 'period-badge period-fulltime';
 }
 
@@ -302,6 +307,7 @@ function renderGoalsPHP($goals, $team = null) {
 .period-1st { background: #28a745; color: #fff; }
 .period-halftime { background: #ffc107; color: #212529; }
 .period-2nd { background: #007bff; color: #fff; }
+.period-added { background: #fd7e14; color: #fff; }
 .period-fulltime { background: #6c757d; color: #fff; }
 
 .stats-row {
@@ -367,10 +373,11 @@ const LIVE_MATCHES = <?= json_encode($liveMatchData) ?>;
 const API_URL = '<?= APP_URL ?>pages/games/api_live.php';
 const REFRESH_INTERVAL = 10000;
 
-// Match timer: 1st half 45+2, HT 15min, 2nd half 45+3
-const FIRST_HALF_MAX = 47 * 60;
+// Match timer: 1st half 45min, halftime 15min, 2nd half starts at 45 and can continue into added time
+const FIRST_HALF_MAX = 45 * 60;
 const HALFTIME_MAX = 15 * 60;
-const SECOND_HALF_MAX = 48 * 60;
+const SECOND_HALF_START = FIRST_HALF_MAX + HALFTIME_MAX;
+const MATCH_END = 90 * 60;
 
 function computeMatchPhase(match) {
     if (match.status === 'scheduled') return { phase: 'pre', elapsed: 0, display: '--:--', periodLabel: 'Scheduled' };
@@ -384,52 +391,46 @@ function computeMatchPhase(match) {
     // Timer is paused (kickoff is null but status is live)
     if (!kickoff) {
         var paused = offset;
-        var mins = Math.floor(paused / 60);
-        var secs = paused % 60;
+        var displaySeconds = paused;
         var label = '1st Half (Paused)';
-        if (paused >= FIRST_HALF_MAX && paused < FIRST_HALF_MAX + HALFTIME_MAX) {
+        if (paused >= FIRST_HALF_MAX && paused < SECOND_HALF_START) {
+            displaySeconds = paused - FIRST_HALF_MAX;
             label = 'Half Time (Paused)';
-        } else if (paused >= FIRST_HALF_MAX + HALFTIME_MAX) {
-            var secondElapsed = paused - FIRST_HALF_MAX - HALFTIME_MAX;
-            if (secondElapsed >= 0) label = '2nd Half (Paused)';
-            else label = '1st Half (Paused)';
+        } else if (paused >= SECOND_HALF_START) {
+            displaySeconds = paused - HALFTIME_MAX;
+            label = displaySeconds > MATCH_END ? 'Added Time (Paused)' : '2nd Half (Paused)';
         }
-        return { phase: 'paused', elapsed: paused, display: String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'), periodLabel: label };
+        var pausedMins = Math.floor(displaySeconds / 60);
+        var pausedSecs = displaySeconds % 60;
+        return { phase: 'paused', elapsed: paused, display: String(pausedMins).padStart(2,'0') + ':' + String(pausedSecs).padStart(2,'0'), periodLabel: label };
     }
 
     // Timer is running (kickoff is set)
     var kickoffDate = new Date(kickoff.replace(' ', 'T'));
     var diffSec = Math.floor((now - kickoffDate) / 1000) + offset;
 
-    const totalFirstHalf = FIRST_HALF_MAX;
-    const totalHalfTime = totalFirstHalf + HALFTIME_MAX;
-    const totalMatch = totalFirstHalf + HALFTIME_MAX + SECOND_HALF_MAX;
-
-    if (diffSec <= totalFirstHalf) {
+    if (diffSec <= FIRST_HALF_MAX) {
         const mins = Math.floor(diffSec / 60);
         const secs = diffSec % 60;
-        let label = '1st Half';
-        if (mins >= 45) label = '1st Half + ' + (mins - 44) + '\'';
-        return { phase: '1st', elapsed: diffSec, display: String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'), periodLabel: label };
+        return { phase: '1st', elapsed: diffSec, display: String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'), periodLabel: '1st Half' };
     }
 
-    if (diffSec <= totalHalfTime) {
-        const htElapsed = diffSec - totalFirstHalf;
+    if (diffSec < SECOND_HALF_START) {
+        const htElapsed = diffSec - FIRST_HALF_MAX;
         const mins = Math.floor(htElapsed / 60);
         const secs = htElapsed % 60;
         return { phase: 'halftime', elapsed: diffSec, display: String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'), periodLabel: 'Half Time' };
     }
 
-    if (diffSec <= totalMatch) {
-        const secondElapsed = diffSec - totalHalfTime;
-        const mins = Math.floor(secondElapsed / 60);
-        const secs = secondElapsed % 60;
-        let label = '2nd Half';
-        if (mins >= 45) label = '2nd Half + ' + (mins - 44) + '\'';
-        return { phase: '2nd', elapsed: diffSec, display: String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'), periodLabel: label };
-    }
-
-    return { phase: 'fulltime', elapsed: 0, display: 'FT', periodLabel: 'Full Time' };
+    const matchClock = diffSec - HALFTIME_MAX;
+    const mins = Math.floor(matchClock / 60);
+    const secs = matchClock % 60;
+    return {
+        phase: matchClock > MATCH_END ? 'added' : '2nd',
+        elapsed: diffSec,
+        display: String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'),
+        periodLabel: matchClock > MATCH_END ? 'Added Time' : '2nd Half'
+    };
 }
 
 function getTimerClass(phase) {
@@ -442,6 +443,7 @@ function getTimerClass(phase) {
 function getPeriodBadgeClass(phase) {
     if (phase === '1st') return 'period-badge period-1st';
     if (phase === 'halftime') return 'period-badge period-halftime';
+    if (phase === 'added') return 'period-badge period-added';
     if (phase === '2nd') return 'period-badge period-2nd';
     return 'period-badge period-fulltime';
 }
