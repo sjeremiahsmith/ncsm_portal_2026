@@ -9,10 +9,58 @@ $db = getDb();
 $counties = getCounties();
 $sports = getSports();
 $errors = [];
+$validRoles = ['super_admin', 'county_coordinator', 'association_admin', 'match_commissioner'];
+$validStatuses = ['active', 'inactive'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
     $action = $_POST['action'] ?? '';
+
+    if ($action === 'create_user') {
+        $username = sanitize($_POST['username'] ?? '');
+        $fullName = sanitize($_POST['full_name'] ?? '');
+        $email = sanitize($_POST['email'] ?? '');
+        $phone = sanitize($_POST['phone'] ?? '');
+        $role = $_POST['role'] ?? '';
+        $status = $_POST['status'] ?? 'active';
+        $countyId = (int)($_POST['county_id'] ?? 0);
+        $associationId = (int)($_POST['association_id'] ?? 0);
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($username === '') $errors[] = 'Username is required.';
+        if ($fullName === '') $errors[] = 'Full name is required.';
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'A valid email is required.';
+        if (!in_array($role, $validRoles, true)) $errors[] = 'Invalid role selected.';
+        if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
+        if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
+        if ($role === 'association_admin' && $associationId <= 0) $errors[] = 'Association is required for association admins.';
+        if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
+        if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
+
+        $existingUsername = $db->fetchOne("SELECT id FROM users WHERE username = ?", [$username]);
+        if ($existingUsername) $errors[] = 'That username is already in use.';
+
+        $existingEmail = $db->fetchOne("SELECT id FROM users WHERE email = ?", [$email]);
+        if ($existingEmail) $errors[] = 'That email is already in use.';
+
+        if (empty($errors)) {
+            if ($role !== 'county_coordinator') {
+                $countyId = null;
+            }
+            if ($role !== 'association_admin') {
+                $associationId = null;
+            }
+
+            $newUserId = $db->insert(
+                "INSERT INTO users (username, password, email, full_name, role, county_id, association_id, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [$username, password_hash($password, PASSWORD_DEFAULT), $email, $fullName, $role, $countyId, $associationId, $phone !== '' ? $phone : null, $status]
+            );
+            logActivity('create_user', "Created user #{$newUserId} ({$username})");
+            setFlash('success', 'New user created successfully.');
+            redirect(APP_URL . 'pages/users/manage.php');
+        }
+    }
 
     if ($action === 'save_user') {
         $id = (int)($_POST['id'] ?? 0);
@@ -24,9 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
         $associationId = (int)($_POST['association_id'] ?? 0);
-
-        $validRoles = ['super_admin', 'county_coordinator', 'association_admin', 'match_commissioner'];
-        $validStatuses = ['active', 'inactive'];
 
         if ($id <= 0) $errors[] = 'Invalid user selected.';
         if ($username === '') $errors[] = 'Username is required.';
@@ -142,6 +187,80 @@ include __DIR__ . '/../../templates/header.php';
         </ul>
     </div>
 <?php endif; ?>
+
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>Add New User</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="create_user">
+
+            <div class="col-md-6">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="full_name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input type="text" name="phone" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Role</label>
+                <select name="role" class="form-select" required>
+                    <?php foreach ($validRoles as $role): ?>
+                        <option value="<?= $role ?>"><?= getRoleLabel($role) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select" required>
+                    <?php foreach ($validStatuses as $status): ?>
+                        <option value="<?= $status ?>"><?= ucfirst($status) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">County</label>
+                <select name="county_id" class="form-select">
+                    <option value="0">None</option>
+                    <?php foreach ($counties as $county): ?>
+                        <option value="<?= (int)$county['id'] ?>"><?= sanitize($county['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Association</label>
+                <select name="association_id" class="form-select">
+                    <option value="0">None</option>
+                    <?php foreach ($sports as $sport): ?>
+                        <option value="<?= (int)$sport['id'] ?>"><?= sanitize($sport['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" name="confirm_password" class="form-control" required>
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Create User</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <?php if ($editUser): ?>
 <div class="card mb-4">

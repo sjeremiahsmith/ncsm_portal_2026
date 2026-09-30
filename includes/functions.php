@@ -3,7 +3,10 @@ require_once __DIR__ . '/db.php';
 
 function getRoleLabel($role) {
     $map = [
+        'super_admin' => 'Super Admin',
         'county_coordinator' => 'Administration',
+        'association_admin' => 'Association Admin',
+        'match_commissioner' => 'Match Commissioner',
         'lofa_admin' => 'Lofa Admin',
         'bong_admin' => 'Bong Admin',
         'kru_admin' => 'Grand Kru Admin',
