@@ -51,7 +51,7 @@ define('CARD_PATH', UPLOAD_PATH . 'cards/');
 define('VIDEO_PATH', UPLOAD_PATH . 'videos/');
 define('GALLERY_PATH', UPLOAD_PATH . 'gallery/');
 
-define('MAX_PHOTO_SIZE', 2 * 1024 * 1024); // 2MB
+define('MAX_PHOTO_SIZE', 5 * 1024 * 1024); // 5MB
 define('ALLOWED_PHOTO_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
 define('MAX_DOCUMENT_SIZE', 10 * 1024 * 1024); // 10MB
 define('ALLOWED_DOCUMENT_TYPES', [

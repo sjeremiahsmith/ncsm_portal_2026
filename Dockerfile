@@ -23,6 +23,7 @@ RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoload
 
 COPY . .
 COPY docker/uploads.conf /etc/apache2/conf-enabled/ncsm-uploads.conf
+COPY docker/php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 COPY docker-entrypoint.sh /usr/local/bin/ncsm-entrypoint
 RUN chmod +x /usr/local/bin/ncsm-entrypoint \
     && mkdir -p /var/www/html/uploads \

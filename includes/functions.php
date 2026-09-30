@@ -158,11 +158,37 @@ function requestExceededPostMaxSize() {
     return $postMaxSize > 0 && $contentLength > $postMaxSize && empty($_POST) && empty($_FILES);
 }
 
+function getPhotoUploadLimitBytes() {
+    $serverLimit = parseIniSizeToBytes(ini_get('upload_max_filesize'));
+    if ($serverLimit <= 0) {
+        $serverLimit = parseIniSizeToBytes(ini_get('post_max_size'));
+    }
+
+    if ($serverLimit > 0) {
+        return min(MAX_PHOTO_SIZE, $serverLimit);
+    }
+
+    return MAX_PHOTO_SIZE;
+}
+
+function formatBytesLabel($bytes) {
+    $bytes = (int)$bytes;
+    if ($bytes >= 1024 * 1024) {
+        $value = $bytes / (1024 * 1024);
+        return rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.') . 'MB';
+    }
+    if ($bytes >= 1024) {
+        $value = $bytes / 1024;
+        return rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.') . 'KB';
+    }
+    return $bytes . 'B';
+}
+
 function getUploadErrorMessage($errorCode) {
     switch ((int)$errorCode) {
         case UPLOAD_ERR_INI_SIZE:
         case UPLOAD_ERR_FORM_SIZE:
-            return 'The selected photo is too large for the server upload limit. Please choose a smaller image.';
+            return 'The selected photo is too large. Please choose an image up to ' . formatBytesLabel(getPhotoUploadLimitBytes()) . '.';
         case UPLOAD_ERR_PARTIAL:
             return 'The photo upload was interrupted. Please try again.';
         case UPLOAD_ERR_NO_FILE:
@@ -192,7 +218,7 @@ function uploadPhoto($file) {
         return ['success' => false, 'error' => getUploadErrorMessage($file['error'] ?? UPLOAD_ERR_NO_FILE)];
     }
 
-    if ($file['size'] > MAX_PHOTO_SIZE) return ['success' => false, 'error' => 'File too large. Max 2MB.'];
+    if ($file['size'] > MAX_PHOTO_SIZE) return ['success' => false, 'error' => 'File too large. Max ' . formatBytesLabel(MAX_PHOTO_SIZE) . '.'];
 
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime = finfo_file($finfo, $file['tmp_name']);
@@ -510,10 +536,30 @@ function getPlayerPhotoPathCandidates($photoPath) {
     return array_values(array_unique($candidates));
 }
 
+function resolveUploadCandidateFilePath($candidate) {
+    $candidate = str_replace('\\', '/', (string)$candidate);
+    $uploadRoot = rtrim(str_replace('\\', '/', UPLOAD_PATH), '/');
+
+    if (strpos($candidate, 'uploads/') === 0) {
+        $relative = substr($candidate, strlen('uploads/'));
+        $uploadPath = $uploadRoot . '/' . ltrim($relative, '/');
+        if (file_exists($uploadPath)) {
+            return $uploadPath;
+        }
+    }
+
+    $projectPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
+    if (file_exists($projectPath)) {
+        return $projectPath;
+    }
+
+    return '';
+}
+
 function getPlayerPhotoFilePath($photoPath) {
     foreach (getPlayerPhotoPathCandidates($photoPath) as $candidate) {
-        $fullPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
-        if (file_exists($fullPath)) {
+        $fullPath = resolveUploadCandidateFilePath($candidate);
+        if ($fullPath !== '') {
             return $fullPath;
         }
     }
@@ -522,11 +568,9 @@ function getPlayerPhotoFilePath($photoPath) {
 }
 
 function getPlayerPhotoUrl($photoPath) {
-    foreach (getPlayerPhotoPathCandidates($photoPath) as $candidate) {
-        $fullPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
-        if (file_exists($fullPath)) {
-            return APP_URL . $candidate;
-        }
+    $normalizedPath = normalizePlayerPhotoPath($photoPath);
+    if ($normalizedPath !== '' && getPlayerPhotoFilePath($normalizedPath)) {
+        return APP_URL . 'pages/players/photo.php?path=' . rawurlencode($normalizedPath);
     }
 
     return APP_URL . 'assets/images/default-avatar.svg';

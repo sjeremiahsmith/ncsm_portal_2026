@@ -25,8 +25,23 @@ if (isAdminRole()) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors = [];
+    $full_name = '';
+    $date_of_birth = '';
+    $gender = '';
+    $nationality = 'Liberian';
+    $year_of_nscm = '';
+    $age = 0;
+    $city = '';
+    $last_club = '';
+    $current_club = '';
+    $county_id = 0;
+    $primary_position = '';
+    $sport_discipline_id = 0;
+    $action = 'draft';
+    $formData = compact(['full_name', 'date_of_birth', 'gender', 'nationality', 'year_of_nscm', 'age', 'city', 'last_club', 'current_club', 'county_id', 'primary_position', 'sport_discipline_id']);
+
     if (requestExceededPostMaxSize()) {
-        $errors[] = 'The selected photo is too large for the server upload limit. Please choose a smaller image and try again.';
+        $errors[] = 'The selected photo is too large. Please choose an image up to ' . formatBytesLabel(getPhotoUploadLimitBytes()) . ' and try again.';
     } else {
         requireCsrfToken();
 
@@ -176,7 +191,7 @@ $pageTitle = $selectedGroup ? "Register Player - Group $selectedGroup" : 'Regist
                                 <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="$('.photo-upload-input').click()">
                                     <i class="bi bi-camera"></i> Upload Photo
                                 </button>
-                                <small class="d-block text-muted">JPG, PNG, GIF. Max 2MB</small>
+                                <small class="d-block text-muted">JPG, PNG, GIF. Max <?= formatBytesLabel(getPhotoUploadLimitBytes()) ?></small>
                             </div>
                         </div>
                         <div class="col-md-9">
