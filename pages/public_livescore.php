@@ -30,6 +30,81 @@ foreach ($liveMatches as $m) {
     $reports[$m['id']] = $r;
 }
 
+function computeMatchPhasePHP($m) {
+    $firstHalf = 47 * 60;
+    $halftime = 15 * 60;
+    $secondHalf = 48 * 60;
+
+    if ($m['status'] === 'scheduled') {
+        return ['phase' => 'pre', 'display' => '--:--', 'periodLabel' => 'Scheduled'];
+    }
+
+    if ($m['status'] === 'completed') {
+        return ['phase' => 'fulltime', 'display' => 'FT', 'periodLabel' => 'Full Time'];
+    }
+
+    $kickoff = $m['timer_kickoff'] ?? null;
+    $offset = (int)($m['timer_offset'] ?? 0);
+
+    if (!$kickoff) {
+        $paused = $offset;
+        $mins = floor($paused / 60);
+        $secs = $paused % 60;
+        $label = '1st Half (Paused)';
+        if ($paused >= $firstHalf && $paused < $firstHalf + $halftime) {
+            $label = 'Half Time (Paused)';
+        } elseif ($paused >= $firstHalf + $halftime) {
+            $label = '2nd Half (Paused)';
+        }
+        return ['phase' => 'paused', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => $label];
+    }
+
+    $diff = time() - strtotime($kickoff) + $offset;
+    if ($diff <= $firstHalf) {
+        $mins = floor($diff / 60);
+        $secs = $diff % 60;
+        $label = '1st Half';
+        if ($mins >= 45) {
+            $label = '1st Half + ' . ($mins - 44) . "'";
+        }
+        return ['phase' => '1st', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => $label];
+    }
+
+    if ($diff <= $firstHalf + $halftime) {
+        $elapsed = $diff - $firstHalf;
+        $mins = floor($elapsed / 60);
+        $secs = $elapsed % 60;
+        return ['phase' => 'halftime', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => 'Half Time'];
+    }
+
+    if ($diff <= $firstHalf + $halftime + $secondHalf) {
+        $elapsed = $diff - $firstHalf - $halftime;
+        $mins = floor($elapsed / 60);
+        $secs = $elapsed % 60;
+        $label = '2nd Half';
+        if ($mins >= 45) {
+            $label = '2nd Half + ' . ($mins - 44) . "'";
+        }
+        return ['phase' => '2nd', 'display' => str_pad($mins, 2, '0', STR_PAD_LEFT) . ':' . str_pad($secs, 2, '0', STR_PAD_LEFT), 'periodLabel' => $label];
+    }
+
+    return ['phase' => 'fulltime', 'display' => 'FT', 'periodLabel' => 'Full Time'];
+}
+
+function getTimerClassPHP($phase) {
+    if ($phase === 'halftime') return 'match-timer halftime';
+    if ($phase === 'paused') return 'match-timer paused';
+    if ($phase === 'pre') return 'match-timer pre-match';
+    return 'match-timer';
+}
+
+function getPeriodBadgeClassPHP($phase) {
+    if ($phase === '1st') return 'period-badge period-1st';
+    if ($phase === 'halftime' || $phase === 'paused') return 'period-badge period-halftime';
+    if ($phase === '2nd') return 'period-badge period-2nd';
+    return 'period-badge period-fulltime';
+}
+
 $pageTitle = 'Live Scores';
 include __DIR__ . '/../templates/public_header.php';
 ?>
@@ -48,6 +123,14 @@ include __DIR__ . '/../templates/public_header.php';
 .status-live { background: #dc3545; color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; animation: pulse 1.5s infinite; }
 .status-scheduled { background: #6c757d; color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; }
 .status-completed { background: #198754; color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; }
+.match-timer { display:inline-block; min-width:84px; padding:6px 10px; border-radius:999px; background:#dc3545; color:#fff; font-weight:700; letter-spacing:0.04em; font-variant-numeric:tabular-nums; }
+.match-timer.halftime, .match-timer.paused { background:#ffc107; color:#212529; }
+.match-timer.pre-match { background:#e9ecef; color:#6c757d; }
+.period-badge { display:inline-block; margin-top:6px; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:600; }
+.period-1st { background:#f8d7da; color:#842029; }
+.period-halftime { background:#fff3cd; color:#664d03; }
+.period-2nd { background:#cfe2ff; color:#084298; }
+.period-fulltime { background:#d1e7dd; color:#0f5132; }
 .team-name { font-size: 0.9rem; font-weight: 600; }
 .goal-scorer { font-size: 0.72rem; padding: 1px 0; }
 .card-event { font-size: 0.72rem; padding: 1px 0; }
@@ -76,6 +159,7 @@ include __DIR__ . '/../templates/public_header.php';
             $report = $reports[$m['id']] ?? null;
             $cards = [];
             $squads = ['home' => ['starting' => [], 'substitute' => []], 'away' => ['starting' => [], 'substitute' => []]];
+            $timer = computeMatchPhasePHP($m);
             if ($report) {
                 $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ?", [$report['id']]);
                 $squadRows = $db->fetchAll("SELECT * FROM match_squad_players WHERE report_id = ? ORDER BY team, player_type, jersey_number", [$report['id']]);
@@ -119,7 +203,12 @@ include __DIR__ . '/../templates/public_header.php';
                     </div>
 
                     <div class="text-center mb-2">
+                        <?php if ($m['status'] === 'scheduled'): ?>
                         <small class="text-muted"><i class="bi bi-calendar-event me-1"></i><?= formatDate($m['match_date'], 'M d, h:i A') ?></small>
+                        <?php else: ?>
+                        <div class="<?= getTimerClassPHP($timer['phase']) ?>" id="timer-<?= (int)$m['id'] ?>"><?= $timer['display'] ?></div>
+                        <div><span class="<?= getPeriodBadgeClassPHP($timer['phase']) ?>" id="period-<?= (int)$m['id'] ?>"><?= $timer['periodLabel'] ?></span></div>
+                        <?php endif; ?>
                     </div>
 
                     <?php if ($report): ?>
@@ -245,6 +334,105 @@ include __DIR__ . '/../templates/public_header.php';
 </div>
 
 <script>
+const LIVE_MATCHES = <?= json_encode(array_map(function ($m) {
+    return [
+        'id' => (int)$m['id'],
+        'status' => $m['status'],
+        'timer_kickoff' => $m['timer_kickoff'],
+        'timer_offset' => (int)($m['timer_offset'] ?? 0),
+    ];
+}, $liveMatches)) ?>;
+
+const FIRST_HALF_MAX = 47 * 60;
+const HALFTIME_MAX = 15 * 60;
+const SECOND_HALF_MAX = 48 * 60;
+
+function computeMatchPhase(match) {
+    if (match.status === 'scheduled') return { phase: 'pre', display: '--:--', periodLabel: 'Scheduled' };
+    if (match.status === 'completed') return { phase: 'fulltime', display: 'FT', periodLabel: 'Full Time' };
+
+    var kickoff = match.timer_kickoff;
+    var offset = match.timer_offset || 0;
+
+    if (!kickoff) {
+        var paused = offset;
+        var mins = Math.floor(paused / 60);
+        var secs = paused % 60;
+        var label = '1st Half (Paused)';
+        if (paused >= FIRST_HALF_MAX && paused < FIRST_HALF_MAX + HALFTIME_MAX) {
+            label = 'Half Time (Paused)';
+        } else if (paused >= FIRST_HALF_MAX + HALFTIME_MAX) {
+            label = '2nd Half (Paused)';
+        }
+        return { phase: 'paused', display: String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0'), periodLabel: label };
+    }
+
+    var kickoffDate = new Date(kickoff.replace(' ', 'T'));
+    var diffSec = Math.floor((new Date() - kickoffDate) / 1000) + offset;
+    var totalFirstHalf = FIRST_HALF_MAX;
+    var totalHalfTime = totalFirstHalf + HALFTIME_MAX;
+    var totalMatch = totalHalfTime + SECOND_HALF_MAX;
+
+    if (diffSec <= totalFirstHalf) {
+        var firstMins = Math.floor(diffSec / 60);
+        var firstSecs = diffSec % 60;
+        var firstLabel = '1st Half';
+        if (firstMins >= 45) firstLabel = '1st Half + ' + (firstMins - 44) + '\'';
+        return { phase: '1st', display: String(firstMins).padStart(2, '0') + ':' + String(firstSecs).padStart(2, '0'), periodLabel: firstLabel };
+    }
+
+    if (diffSec <= totalHalfTime) {
+        var halfElapsed = diffSec - totalFirstHalf;
+        var halfMins = Math.floor(halfElapsed / 60);
+        var halfSecs = halfElapsed % 60;
+        return { phase: 'halftime', display: String(halfMins).padStart(2, '0') + ':' + String(halfSecs).padStart(2, '0'), periodLabel: 'Half Time' };
+    }
+
+    if (diffSec <= totalMatch) {
+        var secondElapsed = diffSec - totalHalfTime;
+        var secondMins = Math.floor(secondElapsed / 60);
+        var secondSecs = secondElapsed % 60;
+        var secondLabel = '2nd Half';
+        if (secondMins >= 45) secondLabel = '2nd Half + ' + (secondMins - 44) + '\'';
+        return { phase: '2nd', display: String(secondMins).padStart(2, '0') + ':' + String(secondSecs).padStart(2, '0'), periodLabel: secondLabel };
+    }
+
+    return { phase: 'fulltime', display: 'FT', periodLabel: 'Full Time' };
+}
+
+function getTimerClass(phase) {
+    if (phase === 'halftime') return 'match-timer halftime';
+    if (phase === 'paused') return 'match-timer paused';
+    if (phase === 'pre') return 'match-timer pre-match';
+    return 'match-timer';
+}
+
+function getPeriodBadgeClass(phase) {
+    if (phase === '1st') return 'period-badge period-1st';
+    if (phase === 'halftime' || phase === 'paused') return 'period-badge period-halftime';
+    if (phase === '2nd') return 'period-badge period-2nd';
+    return 'period-badge period-fulltime';
+}
+
+function refreshTimers() {
+    LIVE_MATCHES.forEach(function(match) {
+        if (match.status === 'scheduled') return;
+        var timer = computeMatchPhase(match);
+        var timerEl = document.getElementById('timer-' + match.id);
+        var periodEl = document.getElementById('period-' + match.id);
+        if (timerEl) {
+            timerEl.textContent = timer.display;
+            timerEl.className = getTimerClass(timer.phase);
+        }
+        if (periodEl) {
+            periodEl.textContent = timer.periodLabel;
+            periodEl.className = getPeriodBadgeClass(timer.phase);
+        }
+    });
+}
+
+refreshTimers();
+setInterval(refreshTimers, 1000);
 setInterval(function() {
     location.reload();
 }, 30000);
