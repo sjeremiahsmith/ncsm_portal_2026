@@ -127,6 +127,55 @@ function mediaUrl($basePath, $storedPath) {
     return APP_URL . $basePath . $storedPath;
 }
 
+function parseIniSizeToBytes($value) {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return 0;
+    }
+
+    $unit = strtolower(substr($value, -1));
+    $bytes = (float)$value;
+    switch ($unit) {
+        case 'g':
+            $bytes *= 1024;
+        case 'm':
+            $bytes *= 1024;
+        case 'k':
+            $bytes *= 1024;
+    }
+
+    return (int)$bytes;
+}
+
+function requestExceededPostMaxSize() {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        return false;
+    }
+
+    $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    $postMaxSize = parseIniSizeToBytes(ini_get('post_max_size'));
+
+    return $postMaxSize > 0 && $contentLength > $postMaxSize && empty($_POST) && empty($_FILES);
+}
+
+function getUploadErrorMessage($errorCode) {
+    switch ((int)$errorCode) {
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'The selected photo is too large for the server upload limit. Please choose a smaller image.';
+        case UPLOAD_ERR_PARTIAL:
+            return 'The photo upload was interrupted. Please try again.';
+        case UPLOAD_ERR_NO_FILE:
+            return 'No photo was selected.';
+        case UPLOAD_ERR_NO_TMP_DIR:
+        case UPLOAD_ERR_CANT_WRITE:
+        case UPLOAD_ERR_EXTENSION:
+            return 'The server could not save the uploaded photo. Please try again.';
+        default:
+            return 'Upload failed.';
+    }
+}
+
 function videoEmbedUrl($url) {
     $url = trim($url);
     if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/', $url, $m)) {
@@ -139,7 +188,9 @@ function videoEmbedUrl($url) {
 }
 
 function uploadPhoto($file) {
-    if ($file['error'] !== UPLOAD_ERR_OK) return ['success' => false, 'error' => 'Upload failed.'];
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return ['success' => false, 'error' => getUploadErrorMessage($file['error'] ?? UPLOAD_ERR_NO_FILE)];
+    }
 
     if ($file['size'] > MAX_PHOTO_SIZE) return ['success' => false, 'error' => 'File too large. Max 2MB.'];
 

@@ -37,6 +37,11 @@ if (isAdminRole() && $player['group_label'] != $_SESSION['user_group_label']) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (requestExceededPostMaxSize()) {
+        setFlash('error', 'The selected photo is too large for the server upload limit. Please choose a smaller image and try again.');
+        redirect(APP_URL . 'pages/players/edit.php?id=' . $id);
+    }
+
     requireCsrfToken();
     $full_name = sanitize($_POST['full_name'] ?? '');
     $date_of_birth = $_POST['date_of_birth'] ?? '';

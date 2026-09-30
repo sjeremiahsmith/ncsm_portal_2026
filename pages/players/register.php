@@ -24,99 +24,103 @@ if (isAdminRole()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    requireCsrfToken();
     $errors = [];
+    if (requestExceededPostMaxSize()) {
+        $errors[] = 'The selected photo is too large for the server upload limit. Please choose a smaller image and try again.';
+    } else {
+        requireCsrfToken();
 
-    $full_name = sanitize($_POST['full_name'] ?? '');
-    $date_of_birth = $_POST['date_of_birth'] ?? '';
-    $gender = $_POST['gender'] ?? '';
-    $nationality = sanitize($_POST['nationality'] ?? 'Liberian');
-    $year_of_nscm = $_POST['year_of_nscm'] ?? '';
-    $age = (int)($_POST['age'] ?? 0);
-    $city = sanitize($_POST['city'] ?? '');
-    $last_club = sanitize($_POST['last_club'] ?? '');
-    $current_club = sanitize($_POST['current_club'] ?? '');
-    $county_id = (int)($_POST['county_id'] ?? 0);
-    $primary_position = sanitize($_POST['primary_position'] ?? '');
-    $sport_discipline_id = (int)($_POST['sport_discipline_id'] ?? 0);
-    $action = $_POST['action'] ?? 'draft';
+        $full_name = sanitize($_POST['full_name'] ?? '');
+        $date_of_birth = $_POST['date_of_birth'] ?? '';
+        $gender = $_POST['gender'] ?? '';
+        $nationality = sanitize($_POST['nationality'] ?? 'Liberian');
+        $year_of_nscm = $_POST['year_of_nscm'] ?? '';
+        $age = (int)($_POST['age'] ?? 0);
+        $city = sanitize($_POST['city'] ?? '');
+        $last_club = sanitize($_POST['last_club'] ?? '');
+        $current_club = sanitize($_POST['current_club'] ?? '');
+        $county_id = (int)($_POST['county_id'] ?? 0);
+        $primary_position = sanitize($_POST['primary_position'] ?? '');
+        $sport_discipline_id = (int)($_POST['sport_discipline_id'] ?? 0);
+        $action = $_POST['action'] ?? 'draft';
 
-    $formData = compact(['full_name', 'date_of_birth', 'gender', 'nationality', 'year_of_nscm', 'age', 'city', 'last_club', 'current_club', 'county_id', 'primary_position', 'sport_discipline_id']);
+        $formData = compact(['full_name', 'date_of_birth', 'gender', 'nationality', 'year_of_nscm', 'age', 'city', 'last_club', 'current_club', 'county_id', 'primary_position', 'sport_discipline_id']);
 
-    if (empty($full_name)) $errors[] = 'Full name is required.';
-    if (empty($date_of_birth)) $errors[] = 'Date of birth is required.';
-    if (empty($gender)) $errors[] = 'Gender is required.';
-    if (empty($nationality)) $errors[] = 'Nationality is required.';
-    if (empty($year_of_nscm)) $errors[] = 'Year of NSCM is required.';
-    if ($age <= 0) $errors[] = 'Age is required.';
-    if (empty($city)) $errors[] = 'City is required.';
-    if ($county_id <= 0) $errors[] = 'County is required.';
-    if (empty($primary_position)) $errors[] = 'Primary level is required.';
-    if ($sport_discipline_id <= 0) $errors[] = 'Sport discipline is required.';
+        if (empty($full_name)) $errors[] = 'Full name is required.';
+        if (empty($date_of_birth)) $errors[] = 'Date of birth is required.';
+        if (empty($gender)) $errors[] = 'Gender is required.';
+        if (empty($nationality)) $errors[] = 'Nationality is required.';
+        if (empty($year_of_nscm)) $errors[] = 'Year of NSCM is required.';
+        if ($age <= 0) $errors[] = 'Age is required.';
+        if (empty($city)) $errors[] = 'City is required.';
+        if ($county_id <= 0) $errors[] = 'County is required.';
+        if (empty($primary_position)) $errors[] = 'Primary level is required.';
+        if ($sport_discipline_id <= 0) $errors[] = 'Sport discipline is required.';
 
-    $photo_path = '';
-    if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
-        $upload = uploadPhoto($_FILES['photo']);
-        if (!$upload['success']) {
-            $errors[] = $upload['error'];
-        } else {
-            $photo_path = $upload['path'];
-        }
-    }
-
-    if (empty($errors)) {
-        $status = ($action === 'submit') ? 'submitted' : 'draft';
-        $playerId = $db->insert(
-            "INSERT INTO players (full_name, date_of_birth, gender, nationality, year_of_nscm, age, city, last_club, current_club, county_id,
-             primary_position, emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
-             medical_fitness_status, medical_notes, photo_path,
-             sport_discipline_id, registered_by, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [$full_name, $date_of_birth, $gender, $nationality, $year_of_nscm, $age, $city, $last_club, $current_club, $county_id,
-             $primary_position, '', '', '',
-             'pending_review', '', $photo_path,
-             $sport_discipline_id, $_SESSION['user_id'], $status]
-        );
-
-        $db->insert(
-            "INSERT INTO approval_workflow (player_id, action, action_by, role_at_time, comments)
-             VALUES (?, ?, ?, ?, ?)",
-            [$playerId, $status === 'submitted' ? 'submit' : 'draft', $_SESSION['user_id'],
-             $_SESSION['user_role'], 'Initial registration']
-        );
-
-        logActivity('register_player', "Registered player: $full_name (Status: $status)");
-
-        $county = $db->fetchOne("SELECT name FROM counties WHERE id = ?", [$county_id]);
-        $sport = $db->fetchOne("SELECT name, association_name FROM sports_disciplines WHERE id = ?", [$sport_discipline_id]);
-
-        if ($status === 'submitted') {
-            $assocAdmins = $db->fetchAll(
-                "SELECT id FROM users WHERE role = 'association_admin' AND association_id = ? AND status = 'active'",
-                [$sport_discipline_id]
-            );
-            foreach ($assocAdmins as $admin) {
-                createNotification(
-                    $admin['id'],
-                    'New Player Registration',
-                    "$full_name from {$county['name']} registered for {$sport['name']} is pending your approval.",
-                    'info',
-                    APP_URL . 'pages/approvals/pending.php'
-                );
+        $photo_path = '';
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $upload = uploadPhoto($_FILES['photo']);
+            if (!$upload['success']) {
+                $errors[] = $upload['error'];
+            } else {
+                $photo_path = $upload['path'];
             }
         }
 
-        // Auto-generate player card
-        $cardGenerated = false;
-        try { generatePlayerCard($playerId, 'file'); $cardGenerated = true; } catch (Exception $e) { $cardGenerated = false; }
+        if (empty($errors)) {
+            $status = ($action === 'submit') ? 'submitted' : 'draft';
+            $playerId = $db->insert(
+                "INSERT INTO players (full_name, date_of_birth, gender, nationality, year_of_nscm, age, city, last_club, current_club, county_id,
+                 primary_position, emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+                 medical_fitness_status, medical_notes, photo_path,
+                 sport_discipline_id, registered_by, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [$full_name, $date_of_birth, $gender, $nationality, $year_of_nscm, $age, $city, $last_club, $current_club, $county_id,
+                 $primary_position, '', '', '',
+                 'pending_review', '', $photo_path,
+                 $sport_discipline_id, $_SESSION['user_id'], $status]
+            );
 
-        $msg = "Player <strong>$full_name</strong> registered successfully as <strong>$status</strong>.";
-        if ($cardGenerated) {
-            $cardUrl = APP_URL . 'uploads/cards/player_' . $playerId . '.pdf';
-            $msg .= ' <a href="' . $cardUrl . '" target="_blank" class="alert-link"><i class="bi bi-credit-card"></i> Download Player Card</a>';
+            $db->insert(
+                "INSERT INTO approval_workflow (player_id, action, action_by, role_at_time, comments)
+                 VALUES (?, ?, ?, ?, ?)",
+                [$playerId, $status === 'submitted' ? 'submit' : 'draft', $_SESSION['user_id'],
+                 $_SESSION['user_role'], 'Initial registration']
+            );
+
+            logActivity('register_player', "Registered player: $full_name (Status: $status)");
+
+            $county = $db->fetchOne("SELECT name FROM counties WHERE id = ?", [$county_id]);
+            $sport = $db->fetchOne("SELECT name, association_name FROM sports_disciplines WHERE id = ?", [$sport_discipline_id]);
+
+            if ($status === 'submitted') {
+                $assocAdmins = $db->fetchAll(
+                    "SELECT id FROM users WHERE role = 'association_admin' AND association_id = ? AND status = 'active'",
+                    [$sport_discipline_id]
+                );
+                foreach ($assocAdmins as $admin) {
+                    createNotification(
+                        $admin['id'],
+                        'New Player Registration',
+                        "$full_name from {$county['name']} registered for {$sport['name']} is pending your approval.",
+                        'info',
+                        APP_URL . 'pages/approvals/pending.php'
+                    );
+                }
+            }
+
+            // Auto-generate player card
+            $cardGenerated = false;
+            try { generatePlayerCard($playerId, 'file'); $cardGenerated = true; } catch (Exception $e) { $cardGenerated = false; }
+
+            $msg = "Player <strong>$full_name</strong> registered successfully as <strong>$status</strong>.";
+            if ($cardGenerated) {
+                $cardUrl = APP_URL . 'uploads/cards/player_' . $playerId . '.pdf';
+                $msg .= ' <a href="' . $cardUrl . '" target="_blank" class="alert-link"><i class="bi bi-credit-card"></i> Download Player Card</a>';
+            }
+            setFlash('success', $msg);
+            redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);
         }
-        setFlash('success', $msg);
-        redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);
     }
 }
 

@@ -4,6 +4,12 @@ require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 requireLogin();
+
+if (requestExceededPostMaxSize()) {
+    setFlash('error', 'The selected photo is too large for the server upload limit. Please choose a smaller image and try again.');
+    redirect(APP_URL . 'pages/players/list.php');
+}
+
 requireCsrfToken();
 
 $db = getDb();
