@@ -118,6 +118,10 @@ include __DIR__ . '/../templates/public_header.php';
                         </div>
                     </div>
 
+                    <div class="text-center mb-2">
+                        <small class="text-muted"><i class="bi bi-calendar-event me-1"></i><?= formatDate($m['match_date'], 'M d, h:i A') ?></small>
+                    </div>
+
                     <?php if ($report): ?>
                     <?php
                         $homeYellow = (int)$report['home_yellow_cards'];
