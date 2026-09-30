@@ -21,7 +21,7 @@ try {
 }
 
 try {
-    $unreadCount = $db->fetchOne("SELECT COUNT(*) as c FROM contact_messages WHERE is_read = 0")['c'];
+    $unreadCount = $db->fetchOne("SELECT COUNT(*) as c FROM contact_messages WHERE is_read = FALSE")['c'];
     echo "✓ Unread count: " . $unreadCount . "<br>";
 } catch (Exception $e) {
     echo "✗ Unread query error: " . $e->getMessage() . "<br>";

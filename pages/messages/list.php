@@ -22,13 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     try {
         if ($action === 'mark_read') {
             $id = (int)($_POST['id'] ?? 0);
-            $db->update("UPDATE contact_messages SET is_read = 1 WHERE id = ?", [$id]);
+            $db->update("UPDATE contact_messages SET is_read = TRUE WHERE id = ?", [$id]);
             $msg = '<div class="alert alert-success alert-dismissible fade show">Message marked as read.<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
         }
 
         if ($action === 'mark_unread') {
             $id = (int)($_POST['id'] ?? 0);
-            $db->update("UPDATE contact_messages SET is_read = 0 WHERE id = ?", [$id]);
+            $db->update("UPDATE contact_messages SET is_read = FALSE WHERE id = ?", [$id]);
             $msg = '<div class="alert alert-success alert-dismissible fade show">Message marked as unread.<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
         }
 
@@ -44,8 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
 
 $filter = $_GET['filter'] ?? 'all';
 $where = '';
-if ($filter === 'unread') $where = ' WHERE is_read = 0';
-elseif ($filter === 'read') $where = ' WHERE is_read = 1';
+if ($filter === 'unread') $where = ' WHERE is_read = FALSE';
+elseif ($filter === 'read') $where = ' WHERE is_read = TRUE';
 
 $messages = [];
 $unreadCount = 0;
@@ -54,7 +54,7 @@ $totalCount = 0;
 if (empty($error)) {
     try {
         $messages = $db->fetchAll("SELECT * FROM contact_messages{$where} ORDER BY created_at DESC");
-        $unreadCount = $db->fetchOne("SELECT COUNT(*) as c FROM contact_messages WHERE is_read = 0")['c'];
+        $unreadCount = $db->fetchOne("SELECT COUNT(*) as c FROM contact_messages WHERE is_read = FALSE")['c'];
         $totalCount = $db->fetchOne("SELECT COUNT(*) as c FROM contact_messages")['c'];
     } catch (Exception $e) {
         $error = 'Could not load messages: ' . $e->getMessage();

@@ -167,32 +167,53 @@ function uploadDocument($file) {
 }
 
 function logActivity($action, $description = '') {
-    $db = getDb();
-    $db->insert(
-        "INSERT INTO activity_logs (user_id, action, description, ip_address) VALUES (?, ?, ?, ?)",
-        [$_SESSION['user_id'], $action, $description, $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1']
-    );
+    try {
+        $db = getDb();
+        $db->insert(
+            "INSERT INTO activity_logs (user_id, action, description, ip_address) VALUES (?, ?, ?, ?)",
+            [$_SESSION['user_id'], $action, $description, $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1']
+        );
+    } catch (Throwable $e) {
+        error_log('Activity log write failed: ' . $e->getMessage());
+    }
 }
 
 function createNotification($userId, $title, $message, $type = 'info', $link = '') {
-    return getDb()->insert(
-        "INSERT INTO notifications (user_id, title, message, type, link) VALUES (?, ?, ?, ?, ?)",
-        [$userId, $title, $message, $type, $link]
-    );
+    try {
+        return getDb()->insert(
+            "INSERT INTO notifications (user_id, title, message, type, link) VALUES (?, ?, ?, ?, ?)",
+            [$userId, $title, $message, $type, $link]
+        );
+    } catch (Throwable $e) {
+        error_log('Notification write failed: ' . $e->getMessage());
+        return false;
+    }
 }
 
 function getUnreadNotificationCount($userId) {
-    return getDb()->fetchOne(
-        "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0",
-        [$userId]
-    )['count'];
+    try {
+        $row = getDb()->fetchOne(
+            "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE",
+            [$userId]
+        );
+        return (int)($row['count'] ?? 0);
+    } catch (Throwable $e) {
+        error_log('Notification count query failed: ' . $e->getMessage());
+        return 0;
+    }
 }
 
 function getRecentNotifications($userId, $limit = 5) {
-    return getDb()->fetchAll(
-        "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-        [$userId, $limit]
-    );
+    try {
+        $limit = max(1, (int)$limit);
+        return getDb()->fetchAll(
+            "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT {$limit}",
+            [$userId]
+        );
+    } catch (Throwable $e) {
+        error_log('Recent notifications query failed: ' . $e->getMessage());
+        return [];
+    }
 }
 
 function getCountyGroupLabel($groupId) {
