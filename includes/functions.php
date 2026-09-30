@@ -416,28 +416,68 @@ function normalizePlayerPhotoPath($photoPath) {
         return '';
     }
 
+    if (preg_match('#^https?://#i', $photoPath)) {
+        $parsedPath = parse_url($photoPath, PHP_URL_PATH);
+        $photoPath = $parsedPath ? $parsedPath : $photoPath;
+    }
+
+    $photoPath = str_replace('\\', '/', $photoPath);
+    $photoPath = preg_replace('#^\./+#', '', $photoPath);
+    $photoPath = ltrim($photoPath, '/');
+
     if (strpos($photoPath, 'uploads/photos/') === 0) {
         return $photoPath;
     }
 
-    return 'uploads/photos/' . ltrim($photoPath, '/\\');
+    if (strpos($photoPath, 'uploads/') === 0) {
+        return $photoPath;
+    }
+
+    if (strpos($photoPath, 'photos/') === 0) {
+        return 'uploads/' . $photoPath;
+    }
+
+    return 'uploads/photos/' . basename($photoPath);
+}
+
+function getPlayerPhotoPathCandidates($photoPath) {
+    $normalizedPath = normalizePlayerPhotoPath($photoPath);
+    if ($normalizedPath === '') {
+        return [];
+    }
+
+    $candidates = [$normalizedPath];
+    $basename = basename($normalizedPath);
+
+    if (strpos($normalizedPath, 'uploads/photos/') !== 0) {
+        $candidates[] = 'uploads/photos/' . $basename;
+    }
+    if (strpos($normalizedPath, 'uploads/') !== 0) {
+        $candidates[] = 'uploads/' . $basename;
+    }
+
+    return array_values(array_unique($candidates));
 }
 
 function getPlayerPhotoFilePath($photoPath) {
-    $normalizedPath = normalizePlayerPhotoPath($photoPath);
-    if ($normalizedPath === '') {
-        return '';
+    foreach (getPlayerPhotoPathCandidates($photoPath) as $candidate) {
+        $fullPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
+        if (file_exists($fullPath)) {
+            return $fullPath;
+        }
     }
 
-    $fullPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $normalizedPath);
-    return file_exists($fullPath) ? $fullPath : '';
+    return '';
 }
 
 function getPlayerPhotoUrl($photoPath) {
-    $normalizedPath = normalizePlayerPhotoPath($photoPath);
-    if ($normalizedPath !== '' && getPlayerPhotoFilePath($normalizedPath)) {
-        return APP_URL . $normalizedPath;
+    foreach (getPlayerPhotoPathCandidates($photoPath) as $candidate) {
+        $fullPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
+        if (file_exists($fullPath)) {
+            return APP_URL . $candidate;
+        }
     }
+
     return APP_URL . 'assets/images/default-avatar.svg';
 }
 
