@@ -30,6 +30,10 @@ function isCountyAdmin() {
     return in_array($_SESSION['username'] ?? '', ['gedeh_admin', 'bong_admin', 'lofa_admin', 'kru_admin']);
 }
 
+function canManageGames() {
+    return hasRole(['super_admin', 'county_coordinator']);
+}
+
 function getDb() {
     return Database::getInstance();
 }
@@ -46,6 +50,11 @@ function ensureContactMessagesTable() {
         is_read BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )");
+}
+
+function ensureMatchExtraTimeColumns() {
+    $db = getDb();
+    $db->query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS extra_time_enabled BOOLEAN NOT NULL DEFAULT FALSE");
 }
 
 function isLoggedIn() {

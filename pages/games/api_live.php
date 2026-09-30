@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/functions.php';
 header('Content-Type: application/json');
 
 $db = getDb();
+ensureMatchExtraTimeColumns();
 
 $sportFilterId = hasRole('association_admin') ? (int)$_SESSION['user_association_id'] : null;
 
@@ -52,6 +53,7 @@ foreach ($liveMatches as $m) {
         'updated_at' => $m['updated_at'],
         'timer_kickoff' => $m['timer_kickoff'],
         'timer_offset' => (int)($m['timer_offset'] ?? 0),
+        'extra_time_enabled' => !empty($m['extra_time_enabled']),
         'report' => $report ? [
             'home_yellow_cards' => (int)$report['home_yellow_cards'],
             'home_red_cards' => (int)$report['home_red_cards'],

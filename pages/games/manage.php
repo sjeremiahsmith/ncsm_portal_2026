@@ -3,9 +3,14 @@ require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 requireLogin();
-requireRole(['super_admin']);
+if (!canManageGames()) {
+    $_SESSION['error'] = 'You do not have permission to access this page.';
+    header('Location: ' . APP_URL . 'pages/dashboard.php');
+    exit;
+}
 
 $db = getDb();
+ensureMatchExtraTimeColumns();
 
 // Handle form actions
 $msg = '';
@@ -474,6 +479,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <i class="bi bi-play-fill"></i> Resume
                                             </button>
                                             <?php endif; ?>
+                                            <button type="button" class="btn btn-sm btn-outline-dark timer-btn" data-match="<?= $m['id'] ?>" data-action="<?= !empty($m['extra_time_enabled']) ? 'disable_extra_time' : 'enable_extra_time' ?>" title="<?= !empty($m['extra_time_enabled']) ? 'Disable Extra Time' : 'Enable Extra Time' ?>">
+                                                <i class="bi bi-stopwatch"></i> <?= !empty($m['extra_time_enabled']) ? 'ET On' : 'ET Off' ?>
+                                            </button>
                                             <button type="button" class="btn btn-sm btn-danger timer-btn" data-match="<?= $m['id'] ?>" data-action="stop" title="End Match">
                                                 <i class="bi bi-stop-fill"></i> End
                                             </button>
@@ -502,6 +510,8 @@ document.querySelectorAll('.timer-btn').forEach(function(btn) {
 
         if (action === 'stop' && !confirm('End this match? The timer will stop.')) return;
         if (action === 'start' && !confirm('Start the match timer now?')) return;
+        if (action === 'enable_extra_time' && !confirm('Enable extra time for this live game?')) return;
+        if (action === 'disable_extra_time' && !confirm('Disable extra time for this live game?')) return;
 
         var formData = new FormData();
         formData.append('action', action);

@@ -171,7 +171,7 @@
                             </a>
                         </li>
                         <?php endif; ?>
-                        <?php if (hasRole('super_admin') || isCountyAdmin()): ?>
+                        <?php if (canManageGames()): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'games/manage') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/games/manage.php">
                                 <i class="bi bi-gear me-2"></i>Manage Games

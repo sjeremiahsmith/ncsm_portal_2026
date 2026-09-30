@@ -184,7 +184,7 @@ $pageTitle = $selectedSport ? 'Standings' : 'All Standings';
     </div>
     <div class="d-flex gap-2 align-items-center">
         <a href="<?= APP_URL ?>pages/games/index.php" class="btn btn-outline-primary btn-sm rounded-pill px-3"><i class="bi bi-broadcast me-1"></i>Live Scores</a>
-        <?php if (hasRole(['super_admin'])): ?>
+        <?php if (canManageGames()): ?>
         <a href="<?= APP_URL ?>pages/games/manage.php" class="btn btn-primary btn-sm rounded-pill px-3"><i class="bi bi-gear me-1"></i>Manage</a>
         <?php endif; ?>
     </div>
