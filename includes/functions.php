@@ -31,7 +31,7 @@ function isCountyAdmin() {
 }
 
 function canManageGames() {
-    return hasRole(['super_admin', 'county_coordinator']);
+    return hasRole(['super_admin']);
 }
 
 function getDb() {

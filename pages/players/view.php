@@ -29,6 +29,11 @@ if (hasRole('association_admin') && $player['sport_discipline_id'] != $_SESSION[
     redirect(APP_URL . 'pages/players/list.php');
 }
 
+if (hasRole('county_coordinator') && (int)$player['county_id'] !== (int)($_SESSION['user_county_id'] ?? 0)) {
+    setFlash('error', 'You do not have access to this player.');
+    redirect(APP_URL . 'pages/players/list.php');
+}
+
 if (isAdminRole() && $player['group_label'] != $_SESSION['user_group_label']) {
     setFlash('error', 'You do not have access to this player.');
     redirect(APP_URL . 'pages/players/list.php');

@@ -38,7 +38,10 @@ if ($county_id > 0) {
     $params[] = $county_id;
 }
 
-if (isAdminRole()) {
+if (hasRole('county_coordinator')) {
+    $where[] = "p.county_id = ?";
+    $params[] = (int)($_SESSION['user_county_id'] ?? 0);
+} elseif (isAdminRole()) {
     $where[] = "c.group_label = ?";
     $params[] = $_SESSION['user_group_label'];
 }
