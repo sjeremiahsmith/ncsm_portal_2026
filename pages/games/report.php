@@ -95,7 +95,7 @@ $matches = $db->fetchAll("
     JOIN counties c1 ON m.home_county_id = c1.id
     JOIN counties c2 ON m.away_county_id = c2.id
     WHERE m.status IN ('live', 'completed')
-    ORDER BY FIELD(m.status, 'live', 'completed'), m.match_date DESC
+    ORDER BY CASE m.status WHEN 'live' THEN 0 WHEN 'completed' THEN 1 ELSE 2 END, m.match_date DESC
 ");
 
 $reports = $db->fetchAll("
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <?php else: ?>
             <?php foreach ($reports as $r):
                 $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ? ORDER BY team, card_type, jersey_number", [$r['id']]);
-                $squad = $db->fetchAll("SELECT * FROM match_squad_players WHERE report_id = ? ORDER BY team, FIELD(player_type,'starting','substitute'), jersey_number", [$r['id']]);
+                $squad = $db->fetchAll("SELECT * FROM match_squad_players WHERE report_id = ? ORDER BY team, CASE player_type WHEN 'starting' THEN 0 WHEN 'substitute' THEN 1 ELSE 2 END, jersey_number", [$r['id']]);
             ?>
             <div class="card report-card shadow-sm mb-3">
                 <div class="report-header d-flex justify-content-between align-items-center">

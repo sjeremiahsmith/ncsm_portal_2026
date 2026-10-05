@@ -29,7 +29,7 @@ if (!$report) {
 }
 
 $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ? ORDER BY team, card_type, jersey_number", [$id]);
-$squad = $db->fetchAll("SELECT * FROM match_squad_players WHERE report_id = ? ORDER BY team, FIELD(player_type,'starting','substitute'), jersey_number", [$id]);
+$squad = $db->fetchAll("SELECT * FROM match_squad_players WHERE report_id = ? ORDER BY team, CASE player_type WHEN 'starting' THEN 0 WHEN 'substitute' THEN 1 ELSE 2 END, jersey_number", [$id]);
 
 $homeStart = array_filter($squad, fn($s) => $s['team']==='home' && $s['player_type']==='starting');
 $homeSub = array_filter($squad, fn($s) => $s['team']==='home' && $s['player_type']==='substitute');
