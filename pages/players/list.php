@@ -59,7 +59,8 @@ $pagination = paginate($total, $page, $perPage);
 
 $players = $db->fetchAll(
     "SELECT p.*, c.name as county_name, c.group_label, s.name as sport_name, s.association_name,
-            u.full_name as registered_by_name
+            u.full_name as registered_by_name,
+            (SELECT comments FROM approval_workflow aw WHERE aw.player_id = p.id AND aw.action = 'reject' ORDER BY aw.created_at DESC LIMIT 1) as rejection_reason
      FROM players p
      JOIN counties c ON p.county_id = c.id
      JOIN sports_disciplines s ON p.sport_discipline_id = s.id
@@ -159,7 +160,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
                             <td><span class="group-badge group-<?= $p['group_label'] ?>"><?= $p['group_label'] ?></span> <?= sanitize($p['county_name']) ?></td>
                             <td><small><?= sanitize($p['sport_name']) ?></small></td>
                             <td><small><?= sanitize($p['primary_position']) ?></small></td>
-                            <td><?= getStatusBadge($p['status']) ?></td>
+                            <td><?= getStatusBadge($p['status'], $p['rejection_reason'] ?? null) ?></td>
                             <td><small class="text-muted"><?= sanitize($p['registered_by_name']) ?></small></td>
                             <td class="text-end">
                                 <a href="<?= APP_URL ?>pages/players/view.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>

@@ -33,7 +33,8 @@ $totalDrafts = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM player
 
 $recentPlayers = $db->fetchAll(
     "SELECT p.*, c.name as county_name, c.group_label, s.name as sport_name, s.association_name,
-            u.full_name as registered_by_name
+            u.full_name as registered_by_name,
+            (SELECT comments FROM approval_workflow aw WHERE aw.player_id = p.id AND aw.action = 'reject' ORDER BY aw.created_at DESC LIMIT 1) as rejection_reason
      FROM players p
      JOIN counties c ON p.county_id = c.id
      JOIN sports_disciplines s ON p.sport_discipline_id = s.id
@@ -229,7 +230,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
                                     </td>
                                     <td><span class="group-badge group-<?= $p['group_label'] ?>" style="width:20px;height:20px;line-height:20px;font-size:0.6rem;"><?= $p['group_label'] ?></span> <?= sanitize($p['county_name']) ?></td>
                                     <td><small><?= sanitize($p['sport_name']) ?></small></td>
-                                    <td><?= getStatusBadge($p['status']) ?></td>
+                                    <td><?= getStatusBadge($p['status'], $p['rejection_reason'] ?? null) ?></td>
                                     <td><small class="text-muted" title="<?= formatDate($p['created_at'], 'M d, Y h:i A') ?>"><?= timeAgo($p['created_at']) ?></small></td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm">

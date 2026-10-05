@@ -591,7 +591,7 @@ function timeAgo($datetime) {
     return 'just now';
 }
 
-function getStatusBadge($status) {
+function getStatusBadge($status, $reason = null) {
     $map = [
         'draft' => 'secondary',
         'submitted' => 'info',
@@ -604,7 +604,14 @@ function getStatusBadge($status) {
         'inactive' => 'secondary',
     ];
     $class = $map[$status] ?? 'secondary';
-    return "<span class='badge bg-{$class}'>{$status}</span>";
+    $badge = "<span class='badge bg-{$class}'>{$status}</span>";
+
+    if ($status === 'rejected' && trim((string)$reason) !== '') {
+        $escapedReason = htmlspecialchars((string)$reason, ENT_QUOTES, 'UTF-8');
+        $badge .= " <button type='button' class='btn btn-link btn-sm p-0 ms-1 text-danger align-baseline' data-bs-toggle='popover' data-bs-trigger='focus' data-bs-placement='top' data-bs-title='Rejection Reason' data-bs-content='{$escapedReason}' aria-label='View rejection reason' title='View rejection reason'><i class='bi bi-info-circle-fill'></i></button>";
+    }
+
+    return $badge;
 }
 
 function paginate($total, $page, $perPage = 20) {

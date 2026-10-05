@@ -10,7 +10,8 @@ $id = (int)($_GET['id'] ?? 0);
 
 $player = $db->fetchOne(
     "SELECT p.*, c.name as county_name, c.group_label, s.name as sport_name, s.association_name, s.association_code,
-            u.full_name as registered_by_name, u.email as registered_by_email
+            u.full_name as registered_by_name, u.email as registered_by_email,
+            (SELECT comments FROM approval_workflow aw WHERE aw.player_id = p.id AND aw.action = 'reject' ORDER BY aw.created_at DESC LIMIT 1) as rejection_reason
      FROM players p
      JOIN counties c ON p.county_id = c.id
      JOIN sports_disciplines s ON p.sport_discipline_id = s.id
@@ -65,7 +66,7 @@ $pageTitle = sanitize($player['full_name']);
                     <?php endif; ?>
                 </div>
                 <h4><?= sanitize($player['full_name']) ?></h4>
-                <div class="mb-2"><?= getStatusBadge($player['status']) ?></div>
+                <div class="mb-2"><?= getStatusBadge($player['status'], $player['rejection_reason'] ?? null) ?></div>
                 <div class="mb-2">
                     <span class="group-badge group-<?= $player['group_label'] ?>"><?= $player['group_label'] ?></span>
                     <?= sanitize($player['county_name']) ?>

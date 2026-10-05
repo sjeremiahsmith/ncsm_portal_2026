@@ -11,6 +11,10 @@
     <script src="<?= APP_URL ?>assets/js/main.js"></script>
     <script>
     (function() {
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function(element) {
+            new bootstrap.Popover(element);
+        });
+
         var sidebar = document.getElementById('sidebarMenu');
         var overlay = document.getElementById('sidebarOverlay');
         var toggler = document.getElementById('sidebarToggle');

@@ -62,7 +62,7 @@ $pageTitle = 'Approval History';
                             <td><a href="<?= APP_URL ?>pages/players/view.php?id=<?= $h['id'] ?>"><?= sanitize($h['full_name']) ?></a></td>
                             <td><span class="group-badge group-<?= $h['group_label'] ?>" style="width:22px;height:22px;line-height:22px;font-size:0.65rem"><?= $h['group_label'] ?></span> <?= sanitize($h['county_name']) ?></td>
                             <td><small><?= sanitize($h['sport_name']) ?></small></td>
-                            <td><?= getStatusBadge($h['status']) ?></td>
+                            <td><?= getStatusBadge($h['status'], $h['status'] === 'rejected' ? ($h['last_comment'] ?? null) : null) ?></td>
                             <td><small><?= sanitize($h['reviewed_by'] ?? 'N/A') ?></small></td>
                             <td><small class="text-muted"><?= sanitize($h['last_comment'] ?? '') ?></small></td>
                             <td><small class="text-muted"><?= timeAgo($h['updated_at']) ?></small></td>
