@@ -156,18 +156,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect(APP_URL . 'pages/users/manage.php');
         }
 
-        $user = $db->fetchOne("SELECT id, username FROM users WHERE id = ?", [$id]);
+        $user = $db->fetchOne("SELECT id, username, role FROM users WHERE id = ?", [$id]);
         if (!$user) {
             setFlash('error', 'User not found.');
             redirect(APP_URL . 'pages/users/manage.php');
         }
 
         try {
+            $connection = $db->getConnection();
+            $connection->beginTransaction();
+
+            if (roleRequiresAssociationAssignment($user['role'])) {
+                $replacementUserId = (int)$_SESSION['user_id'];
+
+                $db->update("UPDATE players SET registered_by = ? WHERE registered_by = ?", [$replacementUserId, $id]);
+                $db->update("UPDATE approval_workflow SET action_by = ? WHERE action_by = ?", [$replacementUserId, $id]);
+                $db->update("UPDATE matches SET created_by = ? WHERE created_by = ?", [$replacementUserId, $id]);
+                $db->update("UPDATE match_reports SET commissioner_id = ? WHERE commissioner_id = ?", [$replacementUserId, $id]);
+                $db->update("UPDATE documents SET uploaded_by = ? WHERE uploaded_by = ?", [$replacementUserId, $id]);
+                $db->update("UPDATE gallery_photos SET uploaded_by = NULL WHERE uploaded_by = ?", [$id]);
+                $db->update("UPDATE videos SET uploaded_by = NULL WHERE uploaded_by = ?", [$id]);
+            }
+
             $db->delete("DELETE FROM users WHERE id = ?", [$id]);
+            $connection->commit();
             logActivity('delete_user', "Deleted user #{$id} ({$user['username']})");
             setFlash('success', 'User deleted successfully.');
         } catch (Throwable $e) {
-            setFlash('error', 'This user cannot be deleted because it is linked to existing records. Disable the account instead.');
+            if (isset($connection) && $connection->inTransaction()) {
+                $connection->rollBack();
+            }
+            error_log('User deletion failed for user #' . $id . ': ' . $e->getMessage());
+            setFlash('error', 'This user cannot be deleted because it is linked to protected records. Disable the account instead.');
         }
         redirect(APP_URL . 'pages/users/manage.php');
     }
