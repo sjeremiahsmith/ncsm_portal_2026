@@ -574,6 +574,69 @@ function getAssociations() {
     return getDb()->fetchAll("SELECT DISTINCT association_name, association_code FROM sports_disciplines WHERE status = 'active'");
 }
 
+function getStandingsData($db, $sportId = null, $groupLabel = null) {
+    $where = ["m.status = 'completed'"];
+    $params = [];
+    if ($sportId) {
+        $where[] = "m.sport_discipline_id = ?";
+        $params[] = $sportId;
+    }
+    if ($groupLabel) {
+        $where[] = "m.group_label = ?";
+        $params[] = $groupLabel;
+    }
+    $whereSql = $where ? "WHERE " . implode(" AND ", $where) : "";
+
+    $rows = $db->fetchAll(
+        "SELECT m.home_county_id, m.away_county_id, m.home_score, m.away_score, m.group_label, m.sport_discipline_id,
+                c1.name as home_name, c2.name as away_name
+         FROM matches m
+         JOIN counties c1 ON m.home_county_id = c1.id
+         JOIN counties c2 ON m.away_county_id = c2.id
+         $whereSql
+         ORDER BY m.group_label, m.match_date",
+        $params
+    );
+
+    $teams = [];
+    foreach ($rows as $r) {
+        foreach ([
+            ['id' => $r['home_county_id'], 'name' => $r['home_name'], 'group' => $r['group_label'], 'gf' => (int)$r['home_score'], 'ga' => (int)$r['away_score']],
+            ['id' => $r['away_county_id'], 'name' => $r['away_name'], 'group' => $r['group_label'], 'gf' => (int)$r['away_score'], 'ga' => (int)$r['home_score']]
+        ] as $t) {
+            $tid = $t['id'];
+            if (!isset($teams[$tid])) {
+                $teams[$tid] = ['name' => $t['name'], 'group' => $t['group'], 'played' => 0, 'wins' => 0, 'draws' => 0, 'losses' => 0, 'gf' => 0, 'ga' => 0, 'gd' => 0, 'pts' => 0];
+            }
+            $teams[$tid]['played']++;
+            $teams[$tid]['gf'] += $t['gf'];
+            $teams[$tid]['ga'] += $t['ga'];
+            $teams[$tid]['gd'] = $teams[$tid]['gf'] - $teams[$tid]['ga'];
+            if ($t['gf'] > $t['ga']) {
+                $teams[$tid]['wins']++;
+                $teams[$tid]['pts'] += 3;
+            } elseif ($t['gf'] === $t['ga']) {
+                $teams[$tid]['draws']++;
+                $teams[$tid]['pts'] += 1;
+            } else {
+                $teams[$tid]['losses']++;
+            }
+        }
+    }
+
+    uksort($teams, function($a, $b) use ($teams) {
+        if ($teams[$a]['pts'] !== $teams[$b]['pts']) {
+            return $teams[$b]['pts'] - $teams[$a]['pts'];
+        }
+        if ($teams[$a]['gd'] !== $teams[$b]['gd']) {
+            return $teams[$b]['gd'] - $teams[$a]['gd'];
+        }
+        return $teams[$b]['gf'] - $teams[$a]['gf'];
+    });
+
+    return $teams;
+}
+
 function formatDate($date, $format = 'M d, Y') {
     return date($format, strtotime($date));
 }

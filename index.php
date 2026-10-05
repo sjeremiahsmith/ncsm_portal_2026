@@ -1,5 +1,11 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/functions.php';
+
+$db = getDb();
+$sports = getSports();
+$publicGroupsToShow = ['A', 'B', 'C', 'D'];
 
 $pageTitle = 'Home';
 include __DIR__ . '/templates/public_header.php';
@@ -231,6 +237,182 @@ include __DIR__ . '/templates/public_header.php';
             </div>
             <?php endforeach; ?>
         </div>
+    </div>
+</section>
+
+<!-- Group Standings -->
+<section class="section" id="standings">
+    <div class="container">
+        <div class="section-header">
+            <span class="overline">Standings</span>
+            <h2>Game Standings by Group</h2>
+            <p>Visitors can follow the latest standings for each sport across Groups A, B, C, and D.</p>
+        </div>
+
+        <style>
+        .home-standing-table {
+            border-collapse: separate;
+            border-spacing: 0 2px;
+        }
+        .home-standing-table thead th {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6c757d;
+            border: none;
+            padding: 0.75rem 0.45rem;
+            background: transparent;
+        }
+        .home-standing-table tbody td {
+            vertical-align: middle;
+            padding: 0.6rem 0.45rem;
+            border: none;
+            background: #fff;
+        }
+        .home-standing-table tbody tr td:first-child { border-radius: 8px 0 0 8px; }
+        .home-standing-table tbody tr td:last-child { border-radius: 0 8px 8px 0; }
+        .home-standing-table tbody tr { box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .home-standing-table .team-col { min-width: 180px; font-weight: 600; font-size: 0.9rem; }
+        .home-standing-table .stat-col { width: 36px; font-size: 0.8rem; color: #495057; }
+        .home-standing-header {
+            color: #fff;
+            border-radius: 12px 12px 0 0;
+            padding: 1rem 1.25rem;
+        }
+        .home-standing-header-default { background: linear-gradient(135deg, #1a237e, #283593); }
+        .home-standing-header-kickball { background: linear-gradient(135deg, #dc3545, #c82333); }
+        .home-standing-sport-title { font-weight: 700; }
+        .home-position-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: #e9ecef;
+            color: #6c757d;
+        }
+        .home-standing-table .pos-1 .home-position-indicator { background: linear-gradient(135deg, #ffd700, #ffb300); color: #5c4100; }
+        .home-standing-table .pos-2 .home-position-indicator { background: linear-gradient(135deg, #e0e0e0, #bdbdbd); color: #424242; }
+        .home-standing-table .pos-3 .home-position-indicator { background: linear-gradient(135deg, #cd7f32, #b8712a); color: #fff; }
+        .home-team-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #fff;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .home-gd-positive { color: #28a745; font-weight: 600; }
+        .home-gd-negative { color: #dc3545; font-weight: 600; }
+        .home-gd-zero { color: #6c757d; }
+        .home-pts-cell { font-size: 1.05rem; font-weight: 800; }
+        .home-pts-cell-default { color: #1a237e; }
+        .home-pts-cell-kickball { color: #dc3545; }
+        </style>
+
+        <?php
+        $anyPublicStandings = false;
+        foreach ($sports as $sport):
+            $sportId = (int)$sport['id'];
+            $sportIsKickball = strtoupper((string)$sport['association_code']) === 'LKA';
+            $hasSportStandings = false;
+            foreach ($publicGroupsToShow as $groupLabel) {
+                if (!empty(getStandingsData($db, $sportId, $groupLabel))) {
+                    $hasSportStandings = true;
+                    break;
+                }
+            }
+            if (!$hasSportStandings) {
+                continue;
+            }
+            $anyPublicStandings = true;
+        ?>
+        <div class="mb-5">
+            <div class="d-flex align-items-center mb-3">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:<?= $sportIsKickball ? '#dc3545' : '#1a237e' ?>;margin-right:8px;"></span>
+                <h4 class="mb-0 home-standing-sport-title" style="color:<?= $sportIsKickball ? '#dc3545' : '#1a237e' ?>;"><?= sanitize($sport['name']) ?> Standings</h4>
+            </div>
+            <div class="row g-4">
+                <?php foreach ($publicGroupsToShow as $groupLabel): ?>
+                    <?php
+                    $standings = getStandingsData($db, $sportId, $groupLabel);
+                    if (empty($standings)) {
+                        continue;
+                    }
+                    $rank = 0;
+                    $totalTeams = count($standings);
+                    ?>
+                    <div class="col-12 col-xl-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="home-standing-header <?= $sportIsKickball ? 'home-standing-header-kickball' : 'home-standing-header-default' ?> d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><span class="badge rounded-pill bg-white text-dark me-2" style="font-size:0.7rem;">Group</span> Group <?= $groupLabel ?></h5>
+                                <small><?= $totalTeams ?> teams</small>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table home-standing-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:36px;">#</th>
+                                                <th class="team-col">Team</th>
+                                                <th class="text-center stat-col"><?= $sportIsKickball ? 'GP' : 'P' ?></th>
+                                                <th class="text-center stat-col">W</th>
+                                                <th class="text-center stat-col">D</th>
+                                                <th class="text-center stat-col">L</th>
+                                                <th class="text-center stat-col"><?= $sportIsKickball ? 'HRF' : 'F' ?></th>
+                                                <th class="text-center stat-col"><?= $sportIsKickball ? 'HRA' : 'A' ?></th>
+                                                <th class="text-center" style="width:44px;"><?= $sportIsKickball ? 'HRD' : 'GD' ?></th>
+                                                <th class="text-center" style="width:56px;">PTS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($standings as $standing): $rank++; ?>
+                                            <tr class="<?= $rank <= 3 ? 'pos-' . $rank : '' ?>">
+                                                <td class="text-center"><span class="home-position-indicator"><?= $rank ?></span></td>
+                                                <td class="team-col">
+                                                    <span class="home-team-badge group-<?= $standing['group'] ?>"><?= $standing['group'] ?></span>
+                                                    <?php $flagUrl = getCountyFlagUrl($standing['name']); ?>
+                                                    <?php if ($flagUrl): ?>
+                                                        <img src="<?= $flagUrl ?>" alt="" style="width:20px;height:20px;object-fit:contain;border-radius:50%;margin-right:6px;vertical-align:middle;">
+                                                    <?php endif; ?>
+                                                    <?= sanitize($standing['name']) ?>
+                                                </td>
+                                                <td class="text-center stat-col"><?= $standing['played'] ?></td>
+                                                <td class="text-center stat-col"><?= $standing['wins'] ?></td>
+                                                <td class="text-center stat-col"><?= $standing['draws'] ?></td>
+                                                <td class="text-center stat-col"><?= $standing['losses'] ?></td>
+                                                <td class="text-center stat-col"><strong><?= $standing['gf'] ?></strong></td>
+                                                <td class="text-center stat-col"><?= $standing['ga'] ?></td>
+                                                <td class="text-center <?= $standing['gd'] > 0 ? 'home-gd-positive' : ($standing['gd'] < 0 ? 'home-gd-negative' : 'home-gd-zero') ?>"><?= $standing['gd'] > 0 ? '+' : '' ?><?= $standing['gd'] ?></td>
+                                                <td class="text-center home-pts-cell <?= $sportIsKickball ? 'home-pts-cell-kickball' : 'home-pts-cell-default' ?>"><?= $standing['pts'] ?></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+
+        <?php if (!$anyPublicStandings): ?>
+            <div class="text-center py-4">
+                <div style="font-size:4rem;color:#dee2e6;"><i class="bi bi-trophy"></i></div>
+                <h5 class="mt-3 text-muted">No standings yet</h5>
+                <p class="text-muted small mb-0">Standings will appear here once completed match scores are entered.</p>
+            </div>
+        <?php endif; ?>
     </div>
 </section>
 
