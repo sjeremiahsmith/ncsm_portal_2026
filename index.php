@@ -115,7 +115,7 @@ include __DIR__ . '/templates/public_header.php';
                         <i class="bi bi-check2-circle"></i>
                     </div>
                     <h5>Approval Workflow</h5>
-                    <p>Streamlined review process where Association Admins verify and approve player registrations.</p>
+                    <p>Streamlined review process where LFA and association administrators verify and approve player registrations.</p>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-lg-4">
@@ -151,7 +151,7 @@ include __DIR__ . '/templates/public_header.php';
                         <i class="bi bi-shield-check"></i>
                     </div>
                     <h5>Role-Based Access</h5>
-                    <p>Secure system with Super Admin, County Coordinator, and Association Admin roles.</p>
+                    <p>Secure system with Super Admin, County Coordinator, LFA Administrator, and Association Admin roles.</p>
                 </div>
             </div>
         </div>

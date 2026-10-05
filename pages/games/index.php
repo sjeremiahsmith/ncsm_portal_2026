@@ -7,7 +7,7 @@ requireLogin();
 $db = getDb();
 ensureMatchExtraTimeColumns();
 
-$sportFilterId = hasRole('association_admin') ? (int)$_SESSION['user_association_id'] : null;
+$sportFilterId = isAssociationApprovalRole() ? (int)$_SESSION['user_association_id'] : null;
 
 $sports = $sportFilterId
     ? [$db->fetchOne("SELECT * FROM sports_disciplines WHERE id = ?", [$sportFilterId])]

@@ -7,6 +7,7 @@ function getRoleLabel($role) {
         'county_coordinator' => 'County Coordinator',
         'group_admin' => 'Group Admin',
         'association_admin' => 'Association Admin',
+        'lfa_administrator' => 'LFA Administrator',
         'match_commissioner' => 'Match Commissioner',
         'lofa_admin' => 'Lofa Admin',
         'bong_admin' => 'Bong Admin',
@@ -33,6 +34,18 @@ function canManageGames() {
     return hasRole(['super_admin', 'group_admin']);
 }
 
+function getAssociationApprovalRoles() {
+    return ['association_admin', 'lfa_administrator'];
+}
+
+function isAssociationApprovalRole() {
+    return hasRole(getAssociationApprovalRoles());
+}
+
+function roleRequiresAssociationAssignment($role) {
+    return in_array($role, getAssociationApprovalRoles(), true);
+}
+
 function getDb() {
     return Database::getInstance();
 }
@@ -50,11 +63,11 @@ function ensureUserRoleAssignments() {
         $db = getDb();
         $db->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS group_label VARCHAR(1)");
         $db->query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
-        $db->query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'match_commissioner'))");
+        $db->query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'lfa_administrator', 'match_commissioner'))");
         $db->query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_group_label_check");
         $db->query("ALTER TABLE users ADD CONSTRAINT users_group_label_check CHECK (group_label IS NULL OR group_label IN ('A', 'B', 'C', 'D'))");
         $db->query("ALTER TABLE approval_workflow DROP CONSTRAINT IF EXISTS approval_workflow_role_at_time_check");
-        $db->query("ALTER TABLE approval_workflow ADD CONSTRAINT approval_workflow_role_at_time_check CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'association_admin', 'super_admin', 'match_commissioner'))");
+        $db->query("ALTER TABLE approval_workflow ADD CONSTRAINT approval_workflow_role_at_time_check CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'association_admin', 'lfa_administrator', 'super_admin', 'match_commissioner'))");
     } catch (Throwable $e) {
         error_log('Role assignment schema sync failed: ' . $e->getMessage());
     }

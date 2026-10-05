@@ -14,7 +14,7 @@ if (!$player) die('Player not found.');
 
 $isSuperAdmin = hasRole('super_admin');
 $isOwnCounty = isAdminRole() && isset($_SESSION['user_group_label']) && $_SESSION['user_group_label'] === $player['group_label'];
-$isOwnSport = hasRole('association_admin') && isset($_SESSION['user_association_id']) && $_SESSION['user_association_id'] == $player['sport_discipline_id'];
+$isOwnSport = isAssociationApprovalRole() && isset($_SESSION['user_association_id']) && $_SESSION['user_association_id'] == $player['sport_discipline_id'];
 $isCommissioner = hasRole('match_commissioner');
 
 if (!($isSuperAdmin || $isOwnCounty || $isOwnSport || $isCommissioner)) {

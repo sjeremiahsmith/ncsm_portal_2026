@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
-requireRole(['association_admin']);
+requireRole(getAssociationApprovalRoles());
 
 $db = getDb();
 

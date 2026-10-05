@@ -24,12 +24,12 @@ if (!$player) {
     redirect(APP_URL . 'pages/players/list.php');
 }
 
-if (hasRole('association_admin') && $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
+if (isAssociationApprovalRole() && $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
     setFlash('error', 'You do not have access to this player.');
     redirect(APP_URL . 'pages/players/list.php');
 }
 
-if (!hasRole('association_admin') && !userCanAccessCounty((int)$player['county_id'], $player['group_label'])) {
+if (!isAssociationApprovalRole() && !userCanAccessCounty((int)$player['county_id'], $player['group_label'])) {
     setFlash('error', 'You do not have access to this player.');
     redirect(APP_URL . 'pages/players/list.php');
 }
@@ -53,7 +53,7 @@ $pageTitle = sanitize($player['full_name']);
             <div class="card-body text-center">
                 <div class="position-relative d-inline-block">
                     <img src="<?= getPlayerPhotoUrl($player['photo_path']) ?>" class="player-photo-lg mb-3" alt="">
-                    <?php if (!hasRole('association_admin') && (hasRole('super_admin') || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
+                    <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
                     <button type="button" class="btn btn-sm btn-light rounded-circle position-absolute bottom-0 end-0 mb-2 me-1 shadow-sm" onclick="document.getElementById('photoInput').click()" title="Change Photo">
                         <i class="bi bi-camera"></i>
                     </button>
@@ -72,7 +72,7 @@ $pageTitle = sanitize($player['full_name']);
                 </div>
                 <hr>
                 <div class="d-grid gap-2">
-                    <?php if (!hasRole('association_admin') && (hasRole('super_admin') || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
+                    <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
                         <a href="<?= APP_URL ?>pages/players/edit.php?id=<?= $player['id'] ?>" class="btn btn-primary"><i class="bi bi-pencil"></i> Edit</a>
                         <?php if ($player['status'] === 'draft'): ?>
                         <form method="POST" action="<?= APP_URL ?>pages/players/edit.php?id=<?= $player['id'] ?>">
@@ -82,8 +82,8 @@ $pageTitle = sanitize($player['full_name']);
                         </form>
                         <?php endif; ?>
                     <?php endif; ?>
-                    <?php if (hasRole('association_admin') && $player['status'] === 'submitted'): ?>
-                        <a href="<?= APP_URL ?>pages/approvals/pending.php?player_id=<?= $player['id'] ?>" class="btn btn-warning"><i class="bi bi-check2-square"></i> Review & Approve</a>
+                    <?php if (isAssociationApprovalRole() && $player['status'] === 'submitted'): ?>
+                        <a href="<?= APP_URL ?>pages/approvals/pending.php?player_id=<?= $player['id'] ?>" class="btn btn-warning"><i class="bi bi-check2-square"></i> Review Registration</a>
                     <?php endif; ?>
                     <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> Print</button>
                     <?php if (hasRole('super_admin') || hasRole('county_coordinator') || isAdminRole() || hasRole('sports_coord')): ?>

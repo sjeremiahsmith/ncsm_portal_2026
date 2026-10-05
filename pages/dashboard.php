@@ -8,7 +8,7 @@ requireLogin();
 $db = getDb();
 $user = getCurrentUser();
 
-$sportFilter = hasRole('association_admin') ? (int)$_SESSION['user_association_id'] : null;
+$sportFilter = isAssociationApprovalRole() ? (int)$_SESSION['user_association_id'] : null;
 $countyFilter = hasRole('county_coordinator') ? (int)getAssignedCountyId() : null;
 $groupFilter = isAdminRole() ? $_SESSION['user_group_label'] : null;
 
@@ -48,7 +48,7 @@ $approvalQueue = $db->fetchAll(
      JOIN counties c ON p.county_id = c.id
      JOIN sports_disciplines s ON p.sport_discipline_id = s.id
      WHERE p.status = 'submitted'" .
-     (hasRole('association_admin') ? " AND p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "") .
+     (isAssociationApprovalRole() ? " AND p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "") .
     ($countyFilter ? " AND p.county_id = " . (int)$countyFilter : "") .
      ($groupFilter ? " AND c.group_label = '" . $groupFilter . "'" : "") .
      " ORDER BY p.created_at ASC LIMIT 10"
@@ -227,7 +227,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= APP_URL ?>pages/players/view.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
-                                            <?php if (!hasRole('association_admin') && (hasRole('super_admin') || ($p['status'] === 'draft' && $_SESSION['user_id'] === $p['registered_by']))): ?>
+                                            <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || ($p['status'] === 'draft' && $_SESSION['user_id'] === $p['registered_by']))): ?>
                                                 <a href="<?= APP_URL ?>pages/players/edit.php?id=<?= $p['id'] ?>" class="btn btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
                                             <?php endif; ?>
                                             <?php if (hasRole('super_admin')): ?>
@@ -249,7 +249,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
         </div>
     </div>
     <div class="col-lg-4">
-        <?php if (hasRole(['association_admin'])): ?>
+        <?php if (isAssociationApprovalRole()): ?>
         <div class="card mb-3">
             <div class="card-header bg-white">
                 <h5 class="mb-0">Pending Approvals</h5>

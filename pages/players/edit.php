@@ -16,8 +16,8 @@ if (!$player) {
     redirect(APP_URL . 'pages/players/list.php');
 }
 
-if (hasRole('association_admin')) {
-    setFlash('error', 'Association admins cannot edit players.');
+if (isAssociationApprovalRole()) {
+    setFlash('error', 'LFA and association administrators cannot edit players.');
     redirect(APP_URL . 'pages/dashboard.php');
 }
 
@@ -31,7 +31,7 @@ if (!hasRole('super_admin') && $player['status'] !== 'draft') {
     redirect(APP_URL . 'pages/players/view.php?id=' . $id);
 }
 
-if (hasRole('association_admin') && $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
+if (isAssociationApprovalRole() && $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
     setFlash('error', 'You do not have access to this player.');
     redirect(APP_URL . 'pages/players/list.php');
 }

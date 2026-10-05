@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
-requireRole(['association_admin']);
+requireRole(getAssociationApprovalRoles());
 
 $db = getDb();
 $user = getCurrentUser();
@@ -12,9 +12,14 @@ $playerId = (int)($_GET['player_id'] ?? 0);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $playerId > 0) {
     requireCsrfToken();
     $action = $_POST['action'] ?? '';
-    $comments = sanitize($_POST['comments'] ?? '');
+    $comments = trim(sanitize($_POST['comments'] ?? ''));
 
-    if (in_array($action, ['approve', 'reject', 'return_for_revision'])) {
+    if (in_array($action, ['approve', 'reject'], true)) {
+        if ($action === 'reject' && $comments === '') {
+            setFlash('error', 'A short rejection note is required before rejecting a player.');
+            redirect(APP_URL . 'pages/approvals/pending.php?player_id=' . $playerId);
+        }
+
         $player = $db->fetchOne("SELECT p.*, u.full_name as reg_name, u.id as reg_user_id, c.name as county_name, s.name as sport_name FROM players p JOIN users u ON p.registered_by = u.id JOIN counties c ON p.county_id = c.id JOIN sports_disciplines s ON p.sport_discipline_id = s.id WHERE p.id = ?", [$playerId]);
 
         if (!$player || $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
@@ -22,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $playerId > 0) {
             redirect(APP_URL . 'pages/approvals/pending.php');
         }
 
-        $db->update("UPDATE players SET status = ?, updated_at = NOW() WHERE id = ?", [$action === 'approve' ? 'approved' : ($action === 'reject' ? 'rejected' : 'draft'), $playerId]);
+        $db->update("UPDATE players SET status = ?, updated_at = NOW() WHERE id = ?", [$action === 'approve' ? 'approved' : 'rejected', $playerId]);
 
         $db->insert(
             "INSERT INTO approval_workflow (player_id, action, action_by, role_at_time, comments) VALUES (?, ?, ?, ?, ?)",
@@ -124,15 +129,13 @@ $pageTitle = 'Pending Approvals';
                 <form method="POST" action="?player_id=<?= $playerId ?>">
                     <?= csrfField() ?>
                     <div class="mb-3">
-                        <label class="form-label">Comments / Notes</label>
-                        <textarea name="comments" class="form-control" rows="4" placeholder="Provide reason for approval or rejection..."></textarea>
+                        <label class="form-label">Comments / Rejection Note</label>
+                        <textarea name="comments" class="form-control" rows="4" placeholder="Write a short note when rejecting a player."></textarea>
+                        <div class="form-text">Approval is optional, but a short reason is required for rejection.</div>
                     </div>
                     <div class="d-grid gap-2">
                         <button type="submit" name="action" value="approve" class="btn btn-success btn-lg">
                             <i class="bi bi-check-circle"></i> Approve
-                        </button>
-                        <button type="submit" name="action" value="return_for_revision" class="btn btn-warning">
-                            <i class="bi bi-arrow-counterclockwise"></i> Return for Revision
                         </button>
                         <button type="submit" name="action" value="reject" class="btn btn-danger" onclick="return confirm('Are you sure you want to reject this registration?')">
                             <i class="bi bi-x-circle"></i> Reject

@@ -46,7 +46,7 @@ if (hasRole('county_coordinator')) {
     $params[] = $_SESSION['user_group_label'];
 }
 
-if (hasRole(['association_admin'])) {
+if (isAssociationApprovalRole()) {
     $where[] = "p.sport_discipline_id = ?";
     $params[] = $_SESSION['user_association_id'];
 }
@@ -163,7 +163,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
                             <td><small class="text-muted"><?= sanitize($p['registered_by_name']) ?></small></td>
                             <td class="text-end">
                                 <a href="<?= APP_URL ?>pages/players/view.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
-                                <?php if (!hasRole('association_admin') && (hasRole('super_admin') || ($p['status'] === 'draft' && $_SESSION['user_id'] === $p['registered_by']))): ?>
+                                <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || ($p['status'] === 'draft' && $_SESSION['user_id'] === $p['registered_by']))): ?>
                                     <a href="<?= APP_URL ?>pages/players/edit.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
                                 <?php endif; ?>
                             </td>

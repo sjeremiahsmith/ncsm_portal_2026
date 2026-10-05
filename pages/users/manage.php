@@ -10,7 +10,7 @@ $counties = getCounties();
 $sports = getSports();
 $groups = getAssignableGroups();
 $errors = [];
-$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'match_commissioner'];
+$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'lfa_administrator', 'match_commissioner'];
 $validStatuses = ['active', 'inactive'];
 $showCreateForm = isset($_GET['create']);
 
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
-        if ($role === 'association_admin' && $associationId <= 0) $errors[] = 'Association is required for association admins.';
+        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for association and LFA administrators.';
         if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
 
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'group_admin') {
                 $groupLabel = null;
             }
-            if ($role !== 'association_admin') {
+            if (!roleRequiresAssociationAssignment($role)) {
                 $associationId = null;
             }
 
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
-        if ($role === 'association_admin' && $associationId <= 0) $errors[] = 'Association is required for association admins.';
+        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for association and LFA administrators.';
         if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
 
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'group_admin') {
                 $groupLabel = null;
             }
-            if ($role !== 'association_admin') {
+            if (!roleRequiresAssociationAssignment($role)) {
                 $associationId = null;
             }
 
@@ -294,6 +294,7 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$sport['id'] ?>"><?= sanitize($sport['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <div class="form-text">Assign an association when the role is Association Admin or LFA Administrator.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Password</label>
@@ -393,6 +394,7 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$sport['id'] ?>" <?= (int)($editUser['association_id'] ?? 0) === (int)$sport['id'] ? 'selected' : '' ?>><?= sanitize($sport['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <div class="form-text">Assign an association when the role is Association Admin or LFA Administrator.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">New Password</label>

@@ -6,7 +6,7 @@ requireLogin();
 
 $db = getDb();
 
-$sportFilterId = hasRole('association_admin') ? (int)$_SESSION['user_association_id'] : null;
+$sportFilterId = isAssociationApprovalRole() ? (int)$_SESSION['user_association_id'] : null;
 
 $selectedSport = isset($_GET['sport']) ? (int)$_GET['sport'] : $sportFilterId;
 $selectedGroup = isset($_GET['group']) ? strtoupper($_GET['group']) : null;
@@ -191,7 +191,7 @@ $pageTitle = $selectedSport ? 'Standings' : 'All Standings';
 </div>
 
 <form method="GET" class="row g-2 mb-3">
-    <?php if (!hasRole('association_admin')): ?>
+    <?php if (!isAssociationApprovalRole()): ?>
     <div class="col-auto">
         <select name="sport" class="form-filter" onchange="this.form.submit()">
             <option value="">All Sports</option>

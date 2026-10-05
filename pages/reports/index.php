@@ -10,8 +10,8 @@ $db = getDb();
 $reportType = $_GET['type'] ?? 'overview';
 $format = $_GET['format'] ?? 'html';
 
-$sportFilter = hasRole('association_admin') ? " AND p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
-$sportFilterShort = hasRole('association_admin') ? " WHERE sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
+$sportFilter = isAssociationApprovalRole() ? " AND p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
+$sportFilterShort = isAssociationApprovalRole() ? " WHERE sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
 $groupFilter = isAdminRole() ? $_SESSION['user_group_label'] : "";
 $groupFilterWhere = $groupFilter ? " WHERE c.group_label = '" . $groupFilter . "'" : "";
 
@@ -53,7 +53,7 @@ $groupStats = $db->fetchAll(
      ORDER BY c.group_label"
 );
 
-$monthFilterAssoc = hasRole('association_admin') ? " WHERE p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
+$monthFilterAssoc = isAssociationApprovalRole() ? " WHERE p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "";
 $monthRegistrations = $db->fetchAll(
     "SELECT TO_CHAR(p.created_at, 'YYYY-MM') as month, COUNT(*) as count
      FROM players p" .

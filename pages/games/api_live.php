@@ -8,7 +8,7 @@ header('Content-Type: application/json');
 $db = getDb();
 ensureMatchExtraTimeColumns();
 
-$sportFilterId = hasRole('association_admin') ? (int)$_SESSION['user_association_id'] : null;
+$sportFilterId = isAssociationApprovalRole() ? (int)$_SESSION['user_association_id'] : null;
 
 $filter = $sportFilterId ? " AND m.sport_discipline_id = $sportFilterId" : "";
 

@@ -194,7 +194,7 @@ include __DIR__ . '/../templates/public_header.php';
                         </h2>
                         <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
                             <div class="accordion-body text-muted">
-                                Player registration is done through the NCSM Portal. County Coordinators can register players for their respective counties. Each player needs personal details, sport discipline, and a photo. After registration, the Association Admin reviews and approves the registration.
+                                Player registration is done through the NCSM Portal. County Coordinators can register players for their respective counties. Each player needs personal details, sport discipline, and a photo. After registration, the LFA Administrator or assigned association administrator reviews and approves the registration.
                             </div>
                         </div>
                     </div>

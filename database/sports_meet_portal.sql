@@ -59,7 +59,7 @@ CREATE TABLE `approval_workflow` (
   `player_id` int(11) NOT NULL,
   `action` enum('submit','approve','reject','return_for_revision') NOT NULL,
   `action_by` int(11) NOT NULL,
-  `role_at_time` enum('county_coordinator','association_admin','super_admin') NOT NULL,
+  `role_at_time` enum('county_coordinator','association_admin','lfa_administrator','super_admin') NOT NULL,
   `comments` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -295,7 +295,7 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `email` varchar(100) NOT NULL,
   `full_name` varchar(100) NOT NULL,
-  `role` enum('super_admin','county_coordinator','association_admin','match_commissioner') NOT NULL,
+  `role` enum('super_admin','county_coordinator','association_admin','lfa_administrator','match_commissioner') NOT NULL,
   `county_id` int(11) DEFAULT NULL,
   `association_id` int(11) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
@@ -311,7 +311,7 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `username`, `password`, `email`, `full_name`, `role`, `county_id`, `association_id`, `phone`, `status`, `created_at`, `updated_at`) VALUES
 (1, 'admin', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'admin@sportsmeet.gov.lr', 'System Administrator', 'super_admin', NULL, NULL, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),
 (4, 'bong_coord', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'bong_coord@sportsmeet.gov.lr', 'Bong Coordinator', 'county_coordinator', 7, NULL, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),
-(7, 'lfa_admin', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'lfa@lfa.org', 'LFA Administrator', 'association_admin', NULL, 1, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),
+(7, 'lfa_admin', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'lfa@lfa.org', 'LFA Administrator', 'lfa_administrator', NULL, 1, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),
 (8, 'lka_admin', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'lka@lka.org', 'LKA Administrator', 'association_admin', NULL, 2, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),
 (9, 'lba_admin', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'lba@lba.org', 'LBA Administrator', 'association_admin', NULL, 3, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),
 (10, 'laa_admin', '$2y$10$Uy1Hl09eP7QDGoeZ1qndA.PGQT4ZByKWNte54rmuwz7lcLJAqiF9m', 'laa@laa.org', 'LAA Administrator', 'association_admin', NULL, 4, NULL, 'active', '2026-07-09 19:45:47', '2026-07-09 19:45:47'),

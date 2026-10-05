@@ -31,7 +31,7 @@ if (!hasRole('super_admin') && $_SESSION['user_id'] !== $player['registered_by']
     redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);
 }
 
-if (hasRole('association_admin') && $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
+if (isAssociationApprovalRole() && $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
     setFlash('error', 'You do not have access to this player.');
     redirect(APP_URL . 'pages/players/list.php');
 }
