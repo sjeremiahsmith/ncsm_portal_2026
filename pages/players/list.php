@@ -70,11 +70,11 @@ $players = $db->fetchAll(
     array_merge($params, [$pagination['perPage'], $pagination['offset']])
 );
 
-$counties = getCounties();
+$counties = getScopedCounties();
 $sports = getSports();
 
 $pageTitle = 'All Players';
-$pageActions = '<a href="' . APP_URL . 'pages/players/register.php" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Register Player</a>';
+$pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/register.php" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Register Player</a>' : '';
 ?>
 <?php include __DIR__ . '/../../templates/header.php'; ?>
 

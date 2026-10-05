@@ -9,24 +9,26 @@ $db = getDb();
 $user = getCurrentUser();
 
 $sportFilter = hasRole('association_admin') ? (int)$_SESSION['user_association_id'] : null;
+$countyFilter = hasRole('county_coordinator') ? (int)getAssignedCountyId() : null;
 $groupFilter = isAdminRole() ? $_SESSION['user_group_label'] : null;
 
-function buildCountSql($base, $extraCond, $sportFilter, $groupFilter) {
+function buildCountSql($base, $extraCond, $sportFilter, $groupFilter, $countyFilter) {
     $join = $groupFilter ? " JOIN counties c ON p.county_id = c.id" : "";
     $conds = [];
     if ($sportFilter) $conds[] = "p.sport_discipline_id = " . (int)$sportFilter;
+    if ($countyFilter) $conds[] = "p.county_id = " . (int)$countyFilter;
     if ($groupFilter) $conds[] = "c.group_label = " . getDb()->getConnection()->quote($groupFilter);
     if ($extraCond) $conds[] = $extraCond;
     $where = $conds ? " WHERE " . implode(" AND ", $conds) : "";
     return $base . $join . $where;
 }
 
-$totalPlayers = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "", $sportFilter, $groupFilter))['count'];
-$totalFemale = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.gender = 'female'", $sportFilter, $groupFilter))['count'];
-$totalMale = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.gender = 'male'", $sportFilter, $groupFilter))['count'];
-$totalApproved = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.status = 'approved'", $sportFilter, $groupFilter))['count'];
-$totalRejected = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.status = 'rejected'", $sportFilter, $groupFilter))['count'];
-$totalDrafts = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.status = 'draft'", $sportFilter, $groupFilter))['count'];
+$totalPlayers = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "", $sportFilter, $groupFilter, $countyFilter))['count'];
+$totalFemale = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.gender = 'female'", $sportFilter, $groupFilter, $countyFilter))['count'];
+$totalMale = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.gender = 'male'", $sportFilter, $groupFilter, $countyFilter))['count'];
+$totalApproved = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.status = 'approved'", $sportFilter, $groupFilter, $countyFilter))['count'];
+$totalRejected = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.status = 'rejected'", $sportFilter, $groupFilter, $countyFilter))['count'];
+$totalDrafts = $db->fetchOne(buildCountSql("SELECT COUNT(*) as count FROM players p", "p.status = 'draft'", $sportFilter, $groupFilter, $countyFilter))['count'];
 
 $recentPlayers = $db->fetchAll(
     "SELECT p.*, c.name as county_name, c.group_label, s.name as sport_name, s.association_name,
@@ -35,7 +37,7 @@ $recentPlayers = $db->fetchAll(
      JOIN counties c ON p.county_id = c.id
      JOIN sports_disciplines s ON p.sport_discipline_id = s.id
      JOIN users u ON p.registered_by = u.id" .
-     ($sportFilter || $groupFilter ? " WHERE" . ($sportFilter ? " p.sport_discipline_id = $sportFilter" : "") . ($sportFilter && $groupFilter ? " AND" : "") . ($groupFilter ? " c.group_label = '" . $groupFilter . "'" : "") : "") .
+    ($sportFilter || $groupFilter || $countyFilter ? " WHERE" . ($sportFilter ? " p.sport_discipline_id = $sportFilter" : "") . ($sportFilter && ($groupFilter || $countyFilter) ? " AND" : "") . ($groupFilter ? " c.group_label = '" . $groupFilter . "'" : "") . ($groupFilter && $countyFilter ? " AND" : "") . ($countyFilter ? " p.county_id = " . (int)$countyFilter : "") : "") .
      " ORDER BY p.created_at DESC LIMIT 10"
 );
 
@@ -47,6 +49,7 @@ $approvalQueue = $db->fetchAll(
      JOIN sports_disciplines s ON p.sport_discipline_id = s.id
      WHERE p.status = 'submitted'" .
      (hasRole('association_admin') ? " AND p.sport_discipline_id = " . (int)$_SESSION['user_association_id'] : "") .
+    ($countyFilter ? " AND p.county_id = " . (int)$countyFilter : "") .
      ($groupFilter ? " AND c.group_label = '" . $groupFilter . "'" : "") .
      " ORDER BY p.created_at ASC LIMIT 10"
 );
@@ -104,7 +107,7 @@ foreach ($sportCounts as $row) {
 }
 
 $pageTitle = 'Dashboard';
-$pageActions = isCoordViewer() ? '' : '<a href="' . APP_URL . 'pages/players/register.php" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Register Player</a>';
+$pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/register.php" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Register Player</a>' : '';
 ?>
 <?php include __DIR__ . '/../templates/header.php'; ?>
 

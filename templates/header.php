@@ -83,7 +83,7 @@
         <div class="row">
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
                 <div class="position-sticky pt-3">
-                    <?php if (isAdminRole() && isset($_SESSION['user_county_name'])): 
+                    <?php if (hasRole('county_coordinator') && isset($_SESSION['user_county_name'])): 
                         $flagUrl = getCountyFlagUrl($_SESSION['user_county_name']);
                     ?>
                     <?php if ($flagUrl): ?>
@@ -99,7 +99,7 @@
                                 <i class="bi bi-speedometer2 me-2"></i>Dashboard
                             </a>
                         </li>
-                        <?php if ((hasRole('super_admin') || isCountyAdmin() || hasRole('county_coordinator')) && !isCoordViewer()): ?>
+                        <?php if (canRegisterPlayers()): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'players') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/players/register.php">
                                 <i class="bi bi-person-plus me-2"></i>Register Player
@@ -130,7 +130,7 @@
                             </a>
                         </li>
                         <?php endif; ?>
-                        <?php if (!isCoordViewer()): ?>
+                        <?php if (!hasRole('county_coordinator')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'reports') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/reports/index.php">
                                 <i class="bi bi-bar-chart me-2"></i>Reports
@@ -192,7 +192,7 @@
                                     <i class="bi bi-layers me-2"></i>Group <?= $g ?>
                                 </a>
                             </li>
-                            <?php if ((hasRole('super_admin') || isCountyAdmin() || hasRole('county_coordinator')) && !isCoordViewer()): ?>
+                            <?php if (canRegisterPlayers()): ?>
                             <li class="nav-item">
                                 <a class="nav-link small py-0 ps-4 text-muted" href="<?= APP_URL ?>pages/players/register.php?group=<?= $g ?>">
                                     <i class="bi bi-plus-circle me-1" style="font-size:0.7rem;"></i>Register

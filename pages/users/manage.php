@@ -8,8 +8,9 @@ requireRole(['super_admin']);
 $db = getDb();
 $counties = getCounties();
 $sports = getSports();
+$groups = getAssignableGroups();
 $errors = [];
-$validRoles = ['super_admin', 'county_coordinator', 'association_admin', 'match_commissioner'];
+$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'match_commissioner'];
 $validStatuses = ['active', 'inactive'];
 $showCreateForm = isset($_GET['create']);
 
@@ -26,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = $_POST['role'] ?? '';
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
+        $groupLabel = strtoupper(trim($_POST['group_label'] ?? ''));
         $associationId = (int)($_POST['association_id'] ?? 0);
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -36,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role, $validRoles, true)) $errors[] = 'Invalid role selected.';
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
+        if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
         if ($role === 'association_admin' && $associationId <= 0) $errors[] = 'Association is required for association admins.';
         if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
@@ -50,13 +53,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'county_coordinator') {
                 $countyId = null;
             }
+            if ($role !== 'group_admin') {
+                $groupLabel = null;
+            }
             if ($role !== 'association_admin') {
                 $associationId = null;
             }
 
             $newUserId = $db->insert(
-                "INSERT INTO users (username, password, email, full_name, role, county_id, association_id, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [$username, password_hash($password, PASSWORD_DEFAULT), $email, $fullName, $role, $countyId, $associationId, $phone !== '' ? $phone : null, $status]
+                "INSERT INTO users (username, password, email, full_name, role, county_id, group_label, association_id, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [$username, password_hash($password, PASSWORD_DEFAULT), $email, $fullName, $role, $countyId, $groupLabel, $associationId, $phone !== '' ? $phone : null, $status]
             );
             logActivity('create_user', "Created user #{$newUserId} ({$username})");
             setFlash('success', 'New user created successfully.');
@@ -73,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = $_POST['role'] ?? '';
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
+        $groupLabel = strtoupper(trim($_POST['group_label'] ?? ''));
         $associationId = (int)($_POST['association_id'] ?? 0);
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -84,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role, $validRoles, true)) $errors[] = 'Invalid role selected.';
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
+        if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
         if ($role === 'association_admin' && $associationId <= 0) $errors[] = 'Association is required for association admins.';
         if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
@@ -98,19 +106,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'county_coordinator') {
                 $countyId = null;
             }
+            if ($role !== 'group_admin') {
+                $groupLabel = null;
+            }
             if ($role !== 'association_admin') {
                 $associationId = null;
             }
 
             if ($password !== '') {
                 $db->update(
-                    "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, association_id = ?, status = ?, password = ?, updated_at = NOW() WHERE id = ?",
-                    [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $associationId, $status, password_hash($password, PASSWORD_DEFAULT), $id]
+                    "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, group_label = ?, association_id = ?, status = ?, password = ?, updated_at = NOW() WHERE id = ?",
+                    [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $groupLabel, $associationId, $status, password_hash($password, PASSWORD_DEFAULT), $id]
                 );
             } else {
                 $db->update(
-                    "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, association_id = ?, status = ?, updated_at = NOW() WHERE id = ?",
-                    [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $associationId, $status, $id]
+                    "UPDATE users SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, county_id = ?, group_label = ?, association_id = ?, status = ?, updated_at = NOW() WHERE id = ?",
+                    [$username, $fullName, $email, $phone !== '' ? $phone : null, $role, $countyId, $groupLabel, $associationId, $status, $id]
                 );
             }
             logActivity('update_user', "Updated user #{$id} ({$username})");
@@ -241,7 +252,7 @@ include __DIR__ . '/../../templates/header.php';
             </div>
             <div class="col-md-4">
                 <label class="form-label">Role</label>
-                <select name="role" class="form-select" required>
+                <select name="role" class="form-select js-role-select" required>
                     <?php foreach ($validRoles as $role): ?>
                         <option value="<?= $role ?>"><?= getRoleLabel($role) ?></option>
                     <?php endforeach; ?>
@@ -255,7 +266,7 @@ include __DIR__ . '/../../templates/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 js-county-assignment">
                 <label class="form-label">County</label>
                 <select name="county_id" class="form-select">
                     <option value="0">None</option>
@@ -263,6 +274,17 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$county['id'] ?>"><?= sanitize($county['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <div class="form-text">Assign a county when the role is County Coordinator.</div>
+            </div>
+            <div class="col-md-4 js-group-assignment">
+                <label class="form-label">Group</label>
+                <select name="group_label" class="form-select">
+                    <option value="">None</option>
+                    <?php foreach ($groups as $group): ?>
+                        <option value="<?= $group ?>">Group <?= $group ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Assign a group when the role is Group Admin.</div>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Association</label>
@@ -330,8 +352,8 @@ include __DIR__ . '/../../templates/header.php';
             </div>
             <div class="col-md-4">
                 <label class="form-label">Role</label>
-                <select name="role" class="form-select" required>
-                    <?php foreach (['super_admin', 'county_coordinator', 'association_admin', 'match_commissioner'] as $role): ?>
+                <select name="role" class="form-select js-role-select" required>
+                    <?php foreach ($validRoles as $role): ?>
                         <option value="<?= $role ?>" <?= $editUser['role'] === $role ? 'selected' : '' ?>><?= getRoleLabel($role) ?></option>
                     <?php endforeach; ?>
                 </select>
@@ -343,7 +365,7 @@ include __DIR__ . '/../../templates/header.php';
                     <option value="inactive" <?= $editUser['status'] === 'inactive' ? 'selected' : '' ?>>Inactive</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 js-county-assignment">
                 <label class="form-label">County</label>
                 <select name="county_id" class="form-select">
                     <option value="0">None</option>
@@ -351,6 +373,17 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$county['id'] ?>" <?= (int)($editUser['county_id'] ?? 0) === (int)$county['id'] ? 'selected' : '' ?>><?= sanitize($county['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <div class="form-text">Assign a county when the role is County Coordinator.</div>
+            </div>
+            <div class="col-md-4 js-group-assignment">
+                <label class="form-label">Group</label>
+                <select name="group_label" class="form-select">
+                    <option value="">None</option>
+                    <?php foreach ($groups as $group): ?>
+                        <option value="<?= $group ?>" <?= ($editUser['group_label'] ?? '') === $group ? 'selected' : '' ?>>Group <?= $group ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Assign a group when the role is Group Admin.</div>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Association</label>
@@ -403,6 +436,7 @@ include __DIR__ . '/../../templates/header.php';
                             <th>Phone</th>
                             <th>Role</th>
                             <th>County</th>
+                            <th>Group</th>
                             <th>Association</th>
                             <th>Password</th>
                             <th>Status</th>
@@ -424,6 +458,7 @@ include __DIR__ . '/../../templates/header.php';
                             <td><?= sanitize($listedUser['phone'] ?? '—') ?></td>
                             <td><?= sanitize(getRoleLabel($listedUser['role'])) ?></td>
                             <td><?= sanitize($listedUser['county_name'] ?? '—') ?></td>
+                            <td><?= sanitize(($listedUser['group_label'] ?? '') !== '' ? 'Group ' . $listedUser['group_label'] : '—') ?></td>
                             <td><?= sanitize($listedUser['association_name'] ?? '—') ?></td>
                             <td><small class="text-muted">Stored securely as a hash</small></td>
                             <td><span class="badge bg-<?= $listedUser['status'] === 'active' ? 'success' : 'secondary' ?>"><?= sanitize($listedUser['status']) ?></span></td>
@@ -475,6 +510,37 @@ document.querySelectorAll('.js-password-toggle').forEach(function(button) {
             icon.classList.add('bi-eye');
         }
     });
+});
+
+document.querySelectorAll('form').forEach(function(form) {
+    var roleSelect = form.querySelector('.js-role-select');
+    var countyWrap = form.querySelector('.js-county-assignment');
+    var groupWrap = form.querySelector('.js-group-assignment');
+    if (!roleSelect || !countyWrap || !groupWrap) return;
+
+    var countySelect = countyWrap.querySelector('select');
+    var groupSelect = groupWrap.querySelector('select');
+
+    function syncAssignmentFields() {
+        var role = roleSelect.value;
+        var countyEnabled = role === 'county_coordinator';
+        var groupEnabled = role === 'group_admin';
+
+        countySelect.disabled = !countyEnabled;
+        groupSelect.disabled = !groupEnabled;
+        countyWrap.classList.toggle('opacity-50', !countyEnabled);
+        groupWrap.classList.toggle('opacity-50', !groupEnabled);
+
+        if (!countyEnabled) {
+            countySelect.value = '0';
+        }
+        if (!groupEnabled) {
+            groupSelect.value = '';
+        }
+    }
+
+    roleSelect.addEventListener('change', syncAssignmentFields);
+    syncAssignmentFields();
 });
 </script>
 

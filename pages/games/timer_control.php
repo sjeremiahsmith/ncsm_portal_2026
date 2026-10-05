@@ -26,6 +26,11 @@ if (!$match) {
     exit;
 }
 
+if (hasRole('group_admin') && $match['group_label'] !== getAssignedGroupLabel()) {
+    echo json_encode(['success' => false, 'error' => 'You do not have permission to manage this match']);
+    exit;
+}
+
 $now = date('Y-m-d H:i:s');
 
 switch ($action) {

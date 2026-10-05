@@ -4,7 +4,8 @@ require_once __DIR__ . '/db.php';
 function getRoleLabel($role) {
     $map = [
         'super_admin' => 'Super Admin',
-        'county_coordinator' => 'Administration',
+        'county_coordinator' => 'County Coordinator',
+        'group_admin' => 'Group Admin',
         'association_admin' => 'Association Admin',
         'match_commissioner' => 'Match Commissioner',
         'lofa_admin' => 'Lofa Admin',
@@ -17,25 +18,112 @@ function getRoleLabel($role) {
 }
 
 function isAdminRole() {
-    return hasRole(['county_coordinator', 'lofa_admin', 'bong_admin', 'kru_admin', 'gedeh_admin']);
+    return hasRole('group_admin');
 }
 
 function isCoordViewer() {
-    if (!hasRole('county_coordinator')) return false;
-    return !in_array($_SESSION['username'] ?? '', ['gedeh_admin', 'bong_admin', 'lofa_admin', 'kru_admin']);
+    return hasRole('county_coordinator');
 }
 
 function isCountyAdmin() {
-    if (!hasRole('county_coordinator')) return false;
-    return in_array($_SESSION['username'] ?? '', ['gedeh_admin', 'bong_admin', 'lofa_admin', 'kru_admin']);
+    return hasRole('group_admin');
 }
 
 function canManageGames() {
-    return hasRole(['super_admin']);
+    return hasRole(['super_admin', 'group_admin']);
 }
 
 function getDb() {
     return Database::getInstance();
+}
+
+function ensureUserRoleAssignments() {
+    static $done = false;
+
+    if ($done) {
+        return;
+    }
+
+    $done = true;
+
+    try {
+        $db = getDb();
+        $db->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS group_label VARCHAR(1)");
+        $db->query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
+        $db->query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'match_commissioner'))");
+        $db->query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_group_label_check");
+        $db->query("ALTER TABLE users ADD CONSTRAINT users_group_label_check CHECK (group_label IS NULL OR group_label IN ('A', 'B', 'C', 'D'))");
+        $db->query("ALTER TABLE approval_workflow DROP CONSTRAINT IF EXISTS approval_workflow_role_at_time_check");
+        $db->query("ALTER TABLE approval_workflow ADD CONSTRAINT approval_workflow_role_at_time_check CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'association_admin', 'super_admin', 'match_commissioner'))");
+    } catch (Throwable $e) {
+        error_log('Role assignment schema sync failed: ' . $e->getMessage());
+    }
+}
+
+ensureUserRoleAssignments();
+
+function getAssignableGroups() {
+    return ['A', 'B', 'C', 'D'];
+}
+
+function canRegisterPlayers() {
+    return hasRole(['super_admin', 'group_admin']);
+}
+
+function getAssignedCountyId() {
+    $countyId = (int)($_SESSION['user_county_id'] ?? 0);
+    return $countyId > 0 ? $countyId : null;
+}
+
+function getAssignedGroupLabel() {
+    $groupLabel = strtoupper(trim((string)($_SESSION['user_group_label'] ?? '')));
+    return in_array($groupLabel, getAssignableGroups(), true) ? $groupLabel : null;
+}
+
+function userCanAccessCounty($countyId, $groupLabel = null) {
+    if (hasRole('super_admin')) {
+        return true;
+    }
+
+    if (hasRole('county_coordinator')) {
+        return (int)$countyId === (int)getAssignedCountyId();
+    }
+
+    if (hasRole('group_admin')) {
+        $assignedGroup = getAssignedGroupLabel();
+        if (!$assignedGroup) {
+            return false;
+        }
+
+        if ($groupLabel === null || $groupLabel === '') {
+            $county = getDb()->fetchOne("SELECT group_label FROM counties WHERE id = ?", [(int)$countyId]);
+            $groupLabel = $county['group_label'] ?? null;
+        }
+
+        return $groupLabel === $assignedGroup;
+    }
+
+    return true;
+}
+
+function getScopedCounties() {
+    $counties = getCounties();
+
+    if (hasRole('county_coordinator')) {
+        $assignedCountyId = getAssignedCountyId();
+        return array_values(array_filter($counties, static function ($county) use ($assignedCountyId) {
+            return (int)$county['id'] === (int)$assignedCountyId;
+        }));
+    }
+
+    if (hasRole('group_admin')) {
+        $assignedGroup = getAssignedGroupLabel();
+        return array_values(array_filter($counties, static function ($county) use ($assignedGroup) {
+            return $county['group_label'] === $assignedGroup;
+        }));
+    }
+
+    return $counties;
 }
 
 function ensureContactMessagesTable() {
@@ -330,16 +418,24 @@ function getAllGroups() {
 }
 
 function getPlayerCountByStatus($status = null, $sportId = null) {
-    $sql = "SELECT COUNT(*) as count FROM players";
+    $sql = "SELECT COUNT(*) as count FROM players p";
     $conditions = [];
     $params = [];
     if ($status) {
-        $conditions[] = "status = ?";
+        $conditions[] = "p.status = ?";
         $params[] = $status;
     }
     if ($sportId) {
-        $conditions[] = "sport_discipline_id = ?";
+        $conditions[] = "p.sport_discipline_id = ?";
         $params[] = $sportId;
+    }
+    if (hasRole('county_coordinator')) {
+        $conditions[] = "p.county_id = ?";
+        $params[] = getAssignedCountyId();
+    } elseif (hasRole('group_admin')) {
+        $sql .= " JOIN counties c ON p.county_id = c.id";
+        $conditions[] = "c.group_label = ?";
+        $params[] = getAssignedGroupLabel();
     }
     if ($conditions) {
         $sql .= " WHERE " . implode(" AND ", $conditions);

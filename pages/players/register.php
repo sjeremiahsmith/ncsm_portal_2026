@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 requireLogin();
-if (!hasRole(['super_admin', 'county_coordinator']) || isCoordViewer()) {
+if (!canRegisterPlayers()) {
     $_SESSION['error'] = 'You do not have permission to access this page.';
     header('Location: ' . APP_URL . 'pages/dashboard.php');
     exit;
@@ -18,9 +18,9 @@ if (!$user) {
     exit;
 }
 
-// Force group filter for county coordinators
+// Force group filter for group admins
 if (isAdminRole()) {
-    $_GET['group'] = $_SESSION['user_group_label'] ?? '';
+    $_GET['group'] = getAssignedGroupLabel() ?? '';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -71,6 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($county_id <= 0) $errors[] = 'County is required.';
         if (empty($primary_position)) $errors[] = 'Primary level is required.';
         if ($sport_discipline_id <= 0) $errors[] = 'Sport discipline is required.';
+
+        if ($county_id > 0) {
+            $county = $db->fetchOne("SELECT id, group_label FROM counties WHERE id = ?", [$county_id]);
+            if (!$county) {
+                $errors[] = 'Selected county was not found.';
+            } elseif (!userCanAccessCounty($county_id, $county['group_label'])) {
+                $errors[] = 'You can only register players inside your assigned group.';
+            }
+        }
 
         $photo_path = '';
         if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -139,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$counties = getCounties();
+$counties = getScopedCounties();
 $sports = getSports();
 
 $selectedGroup = strtoupper($_GET['group'] ?? '');

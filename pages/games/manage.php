@@ -11,6 +11,7 @@ if (!canManageGames()) {
 
 $db = getDb();
 ensureMatchExtraTimeColumns();
+$managedGroup = hasRole('group_admin') ? getAssignedGroupLabel() : null;
 
 // Handle form actions
 $msg = '';
@@ -24,15 +25,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $home_county_id = (int)($_POST['home_county_id']);
         $away_county_id = (int)($_POST['away_county_id']);
         $match_date = $_POST['match_date'] ?? '';
-        $group_label = $_POST['group_label'] ?? '';
+        $group_label = strtoupper(trim($_POST['group_label'] ?? ''));
         $round = sanitize($_POST['round'] ?? 'Group Stage');
         $status = $_POST['status'] ?? 'scheduled';
         $home_score = $_POST['home_score'] !== '' ? (int)$_POST['home_score'] : null;
         $away_score = $_POST['away_score'] !== '' ? (int)$_POST['away_score'] : null;
         $notes = sanitize($_POST['notes'] ?? '');
+        $homeCounty = $db->fetchOne("SELECT id, group_label FROM counties WHERE id = ?", [$home_county_id]);
+        $awayCounty = $db->fetchOne("SELECT id, group_label FROM counties WHERE id = ?", [$away_county_id]);
+
+        if ($managedGroup) {
+            $group_label = $managedGroup;
+        }
 
         if ($home_county_id === $away_county_id) {
             $msg = '<div class="alert alert-danger">Home and Away teams cannot be the same.</div>';
+        } elseif (!$homeCounty || !$awayCounty) {
+            $msg = '<div class="alert alert-danger">Both counties must be valid.</div>';
+        } elseif ($homeCounty['group_label'] !== $group_label || $awayCounty['group_label'] !== $group_label) {
+            $msg = '<div class="alert alert-danger">Both counties must belong to the selected group.</div>';
         } elseif (empty($match_date)) {
             $msg = '<div class="alert alert-danger">Match date is required.</div>';
         } else {
@@ -140,9 +151,10 @@ $matches = $db->fetchAll("
     JOIN sports_disciplines s ON m.sport_discipline_id = s.id
     JOIN counties c1 ON m.home_county_id = c1.id
     JOIN counties c2 ON m.away_county_id = c2.id
+    " . ($managedGroup ? "WHERE m.group_label = ? " : "") . "
     ORDER BY m.match_date DESC
     LIMIT 100
-");
+", $managedGroup ? [$managedGroup] : []);
 
 // Kickball standings helper
 function getManageKickballStandings($db, $groupLabel = null) {
@@ -192,10 +204,15 @@ function getManageKickballStandings($db, $groupLabel = null) {
 }
 
 $sports = getSports();
-$counties = getCounties();
+$counties = $managedGroup ? getGroupCounties($managedGroup) : getCounties();
 $editMatch = null;
 if (isset($_GET['edit'])) {
     $editMatch = $db->fetchOne("SELECT * FROM matches WHERE id = ?", [(int)$_GET['edit']]);
+    if ($editMatch && $managedGroup && $editMatch['group_label'] !== $managedGroup) {
+        $_SESSION['error'] = 'You do not have permission to access that match.';
+        header('Location: ' . APP_URL . 'pages/games/manage.php');
+        exit;
+    }
 }
 
 $pageTitle = 'Manage Games';

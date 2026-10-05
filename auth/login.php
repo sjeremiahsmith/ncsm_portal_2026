@@ -32,13 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_role'] = $user['role'];
             $_SESSION['user_county_id'] = $user['county_id'];
             $_SESSION['user_association_id'] = $user['association_id'];
+            $_SESSION['user_group_label'] = $user['group_label'] ?: null;
 
             if ($user['county_id']) {
                 $county = $db->fetchOne("SELECT name, group_label FROM counties WHERE id = ?", [$user['county_id']]);
-                $_SESSION['user_group_label'] = $county ? $county['group_label'] : null;
+                if (!$_SESSION['user_group_label']) {
+                    $_SESSION['user_group_label'] = $county ? $county['group_label'] : null;
+                }
                 $_SESSION['user_county_name'] = $county ? $county['name'] : null;
             } else {
-                $_SESSION['user_group_label'] = null;
                 $_SESSION['user_county_name'] = null;
             }
 

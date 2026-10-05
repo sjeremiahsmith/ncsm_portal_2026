@@ -21,6 +21,11 @@ if (hasRole('association_admin')) {
     redirect(APP_URL . 'pages/dashboard.php');
 }
 
+if (hasRole('county_coordinator')) {
+    setFlash('error', 'County coordinators cannot edit players.');
+    redirect(APP_URL . 'pages/players/view.php?id=' . $id);
+}
+
 if (!hasRole('super_admin') && $player['status'] !== 'draft') {
     setFlash('error', 'Only draft players can be edited.');
     redirect(APP_URL . 'pages/players/view.php?id=' . $id);
@@ -31,7 +36,7 @@ if (hasRole('association_admin') && $player['sport_discipline_id'] != $_SESSION[
     redirect(APP_URL . 'pages/players/list.php');
 }
 
-if (isAdminRole() && $player['group_label'] != $_SESSION['user_group_label']) {
+if (!userCanAccessCounty((int)$player['county_id'], $player['group_label'])) {
     setFlash('error', 'You do not have access to this player.');
     redirect(APP_URL . 'pages/players/list.php');
 }
@@ -71,6 +76,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($primary_position)) $errors[] = 'Primary level is required.';
     if ($sport_discipline_id <= 0) $errors[] = 'Sport discipline is required.';
 
+    if ($county_id > 0) {
+        $county = $db->fetchOne("SELECT id, group_label FROM counties WHERE id = ?", [$county_id]);
+        if (!$county) {
+            $errors[] = 'Selected county was not found.';
+        } elseif (!userCanAccessCounty($county_id, $county['group_label'])) {
+            $errors[] = 'You can only edit players inside your assigned group.';
+        }
+    }
+
     $photo_path = $player['photo_path'];
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
         $upload = uploadPhoto($_FILES['photo']);
@@ -109,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$counties = getCounties();
+$counties = getScopedCounties();
 $sports = getSports();
 
 $pageTitle = 'Edit Player';
