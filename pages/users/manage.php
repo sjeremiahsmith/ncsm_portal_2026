@@ -12,14 +12,14 @@ $groups = getAssignableGroups();
 $errors = [];
 $validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'match_commissioner'];
 $roleOptions = [
-    'super_admin',
-    'county_coordinator',
-    'group_admin',
-    'lfa_administrator',
-    'lka_administrator',
-    'lba_administrator',
-    'laa_administrator',
-    'match_commissioner',
+    'super_admin' => 'Super Admin',
+    'county_coordinator' => 'County Coordinator',
+    'group_admin' => 'Group Admin',
+    'lfa_administrator' => 'Liberia Football Association Admin',
+    'lka_administrator' => 'Liberia Kickball Association Admin',
+    'lba_administrator' => 'Liberia Basketball Association Admin',
+    'laa_administrator' => 'Liberia Athletics Association Admin',
+    'match_commissioner' => 'Match Commissioner',
 ];
 $validStatuses = ['active', 'inactive'];
 $showCreateForm = isset($_GET['create']);
@@ -309,8 +309,8 @@ include __DIR__ . '/../../templates/header.php';
             <div class="col-md-4">
                 <label class="form-label">Role</label>
                 <select name="role" class="form-select js-role-select" required>
-                    <?php foreach ($roleOptions as $role): ?>
-                        <option value="<?= $role ?>"><?= getRoleLabel($role) ?></option>
+                    <?php foreach ($roleOptions as $role => $roleLabel): ?>
+                        <option value="<?= $role ?>"><?= sanitize($roleLabel) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <div class="form-text">Discipline admin roles: Liberia Football Association Admin, Liberia Kickball Association Admin, Liberia Basketball Association Admin, and Liberia Athletics Association Admin.</div>
@@ -406,8 +406,8 @@ include __DIR__ . '/../../templates/header.php';
             <div class="col-md-4">
                 <label class="form-label">Role</label>
                 <select name="role" class="form-select js-role-select" required>
-                    <?php foreach ($roleOptions as $role): ?>
-                        <option value="<?= $role ?>" <?= $editUser['role'] === $role ? 'selected' : '' ?>><?= getRoleLabel($role) ?></option>
+                    <?php foreach ($roleOptions as $role => $roleLabel): ?>
+                        <option value="<?= $role ?>" <?= $editUser['role'] === $role ? 'selected' : '' ?>><?= sanitize($roleLabel) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -481,8 +481,8 @@ include __DIR__ . '/../../templates/header.php';
                 <label class="form-label small">Filter by Role</label>
                 <select name="role" class="form-select">
                     <option value="">All Roles</option>
-                    <?php foreach ($roleOptions as $roleOption): ?>
-                        <option value="<?= sanitize($roleOption) ?>" <?= $roleFilter === $roleOption ? 'selected' : '' ?>><?= sanitize(getRoleLabel($roleOption)) ?></option>
+                    <?php foreach ($roleOptions as $roleOption => $roleLabel): ?>
+                        <option value="<?= sanitize($roleOption) ?>" <?= $roleFilter === $roleOption ? 'selected' : '' ?>><?= sanitize($roleLabel) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
