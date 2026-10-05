@@ -11,6 +11,11 @@ $sports = getSports();
 $groups = getAssignableGroups();
 $errors = [];
 $validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'match_commissioner'];
+$roleGroups = [
+    'System Roles' => ['super_admin', 'match_commissioner'],
+    'County Roles' => ['county_coordinator', 'group_admin'],
+    'Discipline Admin Roles' => ['lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator'],
+];
 $validStatuses = ['active', 'inactive'];
 $showCreateForm = isset($_GET['create']);
 $roleFilter = $_GET['role'] ?? '';
@@ -299,8 +304,12 @@ include __DIR__ . '/../../templates/header.php';
             <div class="col-md-4">
                 <label class="form-label">Role</label>
                 <select name="role" class="form-select js-role-select" required>
-                    <?php foreach ($validRoles as $role): ?>
-                        <option value="<?= $role ?>"><?= getRoleLabel($role) ?></option>
+                    <?php foreach ($roleGroups as $groupLabel => $groupRoles): ?>
+                        <optgroup label="<?= sanitize($groupLabel) ?>">
+                            <?php foreach ($groupRoles as $role): ?>
+                                <option value="<?= $role ?>"><?= getRoleLabel($role) ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -395,8 +404,12 @@ include __DIR__ . '/../../templates/header.php';
             <div class="col-md-4">
                 <label class="form-label">Role</label>
                 <select name="role" class="form-select js-role-select" required>
-                    <?php foreach ($validRoles as $role): ?>
-                        <option value="<?= $role ?>" <?= $editUser['role'] === $role ? 'selected' : '' ?>><?= getRoleLabel($role) ?></option>
+                    <?php foreach ($roleGroups as $groupLabel => $groupRoles): ?>
+                        <optgroup label="<?= sanitize($groupLabel) ?>">
+                            <?php foreach ($groupRoles as $role): ?>
+                                <option value="<?= $role ?>" <?= $editUser['role'] === $role ? 'selected' : '' ?>><?= getRoleLabel($role) ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -470,8 +483,12 @@ include __DIR__ . '/../../templates/header.php';
                 <label class="form-label small">Filter by Role</label>
                 <select name="role" class="form-select">
                     <option value="">All Roles</option>
-                    <?php foreach ($validRoles as $roleOption): ?>
-                        <option value="<?= sanitize($roleOption) ?>" <?= $roleFilter === $roleOption ? 'selected' : '' ?>><?= sanitize(getRoleLabel($roleOption)) ?></option>
+                    <?php foreach ($roleGroups as $groupLabel => $groupRoles): ?>
+                        <optgroup label="<?= sanitize($groupLabel) ?>">
+                            <?php foreach ($groupRoles as $roleOption): ?>
+                                <option value="<?= sanitize($roleOption) ?>" <?= $roleFilter === $roleOption ? 'selected' : '' ?>><?= sanitize(getRoleLabel($roleOption)) ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
                     <?php endforeach; ?>
                 </select>
             </div>
