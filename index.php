@@ -20,7 +20,7 @@ include __DIR__ . '/templates/public_header.php';
         <h1>National County<br><span class="highlight">Sports Meet</span></h1>
         <p>Uniting 15 counties across 4 groups through the power of sports. Football, Kickball, Basketball, and Athletics &mdash; celebrating athletic excellence nationwide.</p>
         <div class="hero-buttons">
-            <a href="#standings" class="btn btn-outline-custom">
+            <a href="#standings" class="btn btn-primary-custom">
                 <i class="bi bi-bar-chart-line-fill me-2"></i>View Standings
             </a>
             <a href="<?= APP_URL ?>pages/about.php" class="btn btn-primary-custom">
