@@ -91,9 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$upload['success']) {
             $errors[] = $upload['error'];
         } else {
-            $oldPhotoFile = getPlayerPhotoFilePath($player['photo_path']);
-            if ($oldPhotoFile) {
-                unlink($oldPhotoFile);
+            if ($player['photo_path'] && !deleteManagedImage($player['photo_path'])) {
+                error_log('Failed to remove previous player photo for player ID ' . $player['id']);
             }
             $photo_path = $upload['path'];
         }

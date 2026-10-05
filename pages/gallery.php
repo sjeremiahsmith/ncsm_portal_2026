@@ -42,32 +42,18 @@ if (hasRole('super_admin') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_P
     $newTitle = trim($_POST['category_title'] ?? $categoryTitle);
 
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, $_FILES['photo']['tmp_name']);
-        finfo_close($finfo);
-
-        if (!in_array($mime, $allowed)) {
-            $uploadError = 'Only JPG, PNG, GIF, and WebP images are allowed.';
+        $upload = uploadGalleryPhoto($_FILES['photo']);
+        if (!$upload['success']) {
+            $uploadError = $upload['error'];
         } else {
-            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-            $filename = 'gallery_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            $dest = GALLERY_PATH;
-            if (!is_dir($dest)) mkdir($dest, 0777, true);
-
-            if (move_uploaded_file($_FILES['photo']['tmp_name'], $dest . $filename)) {
-                $relPath = 'uploads/gallery/' . $filename;
-                $maxOrder = $db->fetchOne("SELECT COALESCE(MAX(sort_order),0) + 1 AS next FROM gallery_photos WHERE category_slug = ?", [$newSlug]);
-                $db->insert(
-                    "INSERT INTO gallery_photos (category_slug, category_title, photo_path, caption, sort_order, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)",
-                    [$newSlug, $newTitle, $relPath, $caption, $maxOrder['next'], $_SESSION['user_id'] ?? null]
-                );
-                $uploadSuccess = 'Photo uploaded successfully!';
-                $slug = $newSlug;
-                $categoryTitle = $newTitle;
-            } else {
-                $uploadError = 'Failed to move uploaded file. Please try again.';
-            }
+            $maxOrder = $db->fetchOne("SELECT COALESCE(MAX(sort_order),0) + 1 AS next FROM gallery_photos WHERE category_slug = ?", [$newSlug]);
+            $db->insert(
+                "INSERT INTO gallery_photos (category_slug, category_title, photo_path, caption, sort_order, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)",
+                [$newSlug, $newTitle, $upload['path'], $caption, $maxOrder['next'], $_SESSION['user_id'] ?? null]
+            );
+            $uploadSuccess = 'Photo uploaded successfully!';
+            $slug = $newSlug;
+            $categoryTitle = $newTitle;
         }
     } else {
         $uploadError = 'Please select a photo to upload.';
@@ -80,9 +66,9 @@ if (hasRole('super_admin') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_P
     if ($photoId > 0) {
         $photo = $db->fetchOne("SELECT photo_path FROM gallery_photos WHERE id = ?", [$photoId]);
         if ($photo) {
-            $barePath = str_replace(['uploads/gallery/', 'uploads/'], '', (string)$photo['photo_path']);
-            $fullPath = GALLERY_PATH . $barePath;
-            if ($barePath && file_exists($fullPath)) unlink($fullPath);
+            if (!deleteManagedImage($photo['photo_path'])) {
+                error_log('Failed to remove gallery photo ID ' . $photoId);
+            }
             $db->delete("DELETE FROM gallery_photos WHERE id = ?", [$photoId]);
             $uploadSuccess = 'Photo deleted.';
         }

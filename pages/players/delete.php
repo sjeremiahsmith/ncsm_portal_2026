@@ -16,9 +16,8 @@ if (!$player) {
 }
 
 if ($player['photo_path']) {
-    $photoFile = getPlayerPhotoFilePath($player['photo_path']);
-    if ($photoFile) {
-        unlink($photoFile);
+    if (!deleteManagedImage($player['photo_path'])) {
+        error_log('Failed to remove player photo during delete for player ID ' . $player['id']);
     }
 }
 

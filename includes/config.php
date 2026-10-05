@@ -50,6 +50,10 @@ define('DOCUMENT_PATH', UPLOAD_PATH . 'documents/');
 define('CARD_PATH', UPLOAD_PATH . 'cards/');
 define('VIDEO_PATH', UPLOAD_PATH . 'videos/');
 define('GALLERY_PATH', UPLOAD_PATH . 'gallery/');
+define('SUPABASE_URL', rtrim(configEnv('NCSM_SUPABASE_URL', ''), '/'));
+define('SUPABASE_ANON_KEY', configEnv('NCSM_SUPABASE_ANON_KEY', ''));
+define('SUPABASE_SERVICE_ROLE_KEY', configEnv('NCSM_SUPABASE_SERVICE_ROLE_KEY', ''));
+define('SUPABASE_BUCKET', trim(configEnv('NCSM_SUPABASE_BUCKET', ''), '/'));
 
 define('MAX_PHOTO_SIZE', 5 * 1024 * 1024); // 5MB
 define('ALLOWED_PHOTO_TYPES', ['image/jpeg', 'image/png', 'image/gif']);

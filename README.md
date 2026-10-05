@@ -102,13 +102,17 @@ Render PostgreSQL database:
 - `NCSM_APP_URL` — the complete HTTPS application URL with no trailing slash
 - `DATABASE_URL` — Render's internal PostgreSQL connection string
 - `NCSM_SEED_PASSWORD` — a unique password of at least 12 characters
+- `NCSM_SUPABASE_URL` — your Supabase project URL
+- `NCSM_SUPABASE_ANON_KEY` — optional public API key used in storage requests
+- `NCSM_SUPABASE_SERVICE_ROLE_KEY` — server-only key used to upload/delete images
+- `NCSM_SUPABASE_BUCKET` — the public Supabase Storage bucket name for images
 
 ### Required deployment order
 
 1. Deploy the blueprint in `render.yaml`. It creates a Render PostgreSQL database and injects
 	its `connectionString` into `DATABASE_URL`. Set the remaining `sync: false` variables:
-	`NCSM_APP_URL` and `NCSM_SEED_PASSWORD`. Keep secrets in Render's environment settings,
-	never in Git.
+	`NCSM_APP_URL`, `NCSM_SEED_PASSWORD`, and the Supabase Storage variables if you want
+	permanent CDN-backed image hosting. Keep secrets in Render's environment settings, never in Git.
 2. Import the schema into Render PostgreSQL:
 
 	```bash
@@ -145,6 +149,19 @@ Render PostgreSQL database:
 
 	On Render, the persistent disk is mounted at `/var/www/html/uploads`. For large or highly
 	available media, use object storage instead of the single-service disk.
+
+6. To store player and gallery images permanently in Supabase Storage, create a public bucket
+	and set these environment variables:
+
+	```bash
+	NCSM_SUPABASE_URL=https://your-project.supabase.co
+	NCSM_SUPABASE_ANON_KEY=your-anon-key
+	NCSM_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+	NCSM_SUPABASE_BUCKET=ncsm-media
+	```
+
+	New player and gallery image uploads will go to Supabase Storage. If these variables are
+	not configured, the application continues using local uploads on the persistent disk.
 
 After deployment, verify `/`, login, document download authorization, player registration,
 an existing migrated player, and an uploaded image. Never paste database passwords into the

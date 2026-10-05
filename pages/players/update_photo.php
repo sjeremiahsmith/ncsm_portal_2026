@@ -48,9 +48,8 @@ if (!$result['success']) {
 }
 
 if ($player['photo_path']) {
-    $oldFile = getPlayerPhotoFilePath($player['photo_path']);
-    if ($oldFile) {
-        unlink($oldFile);
+    if (!deleteManagedImage($player['photo_path'])) {
+        error_log('Failed to remove previous player photo for player ID ' . $player['id']);
     }
 }
 

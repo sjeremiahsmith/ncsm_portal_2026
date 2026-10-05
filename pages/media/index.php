@@ -72,28 +72,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Please choose a photo to upload.';
         } elseif ($_FILES['gallery_photo']['error'] !== UPLOAD_ERR_OK) {
             $error = 'Photo upload failed.';
-        } elseif ($_FILES['gallery_photo']['size'] > MAX_PHOTO_SIZE) {
-            $error = 'Photo too large. Maximum size is 2MB.';
         } else {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime = finfo_file($finfo, $_FILES['gallery_photo']['tmp_name']);
-            finfo_close($finfo);
-            if (!in_array($mime, ALLOWED_PHOTO_TYPES)) {
-                $error = 'Invalid image type. JPG, PNG, GIF only.';
+            $upload = uploadGalleryPhoto($_FILES['gallery_photo']);
+            if (!$upload['success']) {
+                $error = $upload['error'];
             } else {
-                $ext = pathinfo($_FILES['gallery_photo']['name'], PATHINFO_EXTENSION);
-                $filename = 'photo_' . uniqid() . '.' . $ext;
-                if (!is_dir(GALLERY_PATH)) mkdir(GALLERY_PATH, 0755, true);
-                if (move_uploaded_file($_FILES['gallery_photo']['tmp_name'], GALLERY_PATH . $filename)) {
-                    $db->insert(
-                        "INSERT INTO gallery_photos (category_slug, category_title, photo_path, caption, uploaded_by) VALUES (?, ?, ?, ?, ?)",
-                        [$categorySlug, $categoryTitle, $filename, $caption, $userId]
-                    );
-                    logActivity('photo_uploaded', "Uploaded gallery photo: $caption");
-                    $message = 'Photo uploaded successfully.';
-                } else {
-                    $error = 'Failed to save photo file.';
-                }
+                $db->insert(
+                    "INSERT INTO gallery_photos (category_slug, category_title, photo_path, caption, uploaded_by) VALUES (?, ?, ?, ?, ?)",
+                    [$categorySlug, $categoryTitle, $upload['path'], $caption, $userId]
+                );
+                logActivity('photo_uploaded', "Uploaded gallery photo: $caption");
+                $message = 'Photo uploaded successfully.';
             }
         }
     } elseif ($action === 'delete_video') {
@@ -112,9 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         $photo = $db->fetchOne("SELECT * FROM gallery_photos WHERE id = ?", [$id]);
         if ($photo) {
-            $path = str_replace(['uploads/gallery/', 'uploads/'], '', (string)$photo['photo_path']);
-            if ($photo['photo_path'] && file_exists(GALLERY_PATH . $path)) {
-                unlink(GALLERY_PATH . $path);
+            if (!deleteManagedImage($photo['photo_path'])) {
+                error_log('Failed to remove media gallery photo ID ' . $id);
             }
             $db->delete("DELETE FROM gallery_photos WHERE id = ?", [$id]);
             logActivity('photo_deleted', "Deleted gallery photo: {$photo['caption']}");

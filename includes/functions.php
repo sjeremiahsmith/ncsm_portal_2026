@@ -261,6 +261,9 @@ function getCurrentUser() {
 
 function mediaUrl($basePath, $storedPath) {
     $storedPath = (string)$storedPath;
+    if ($storedPath !== '' && preg_match('#^https?://#i', $storedPath)) {
+        return $storedPath;
+    }
     if ($storedPath === '' || strpos($storedPath, 'uploads/') === 0) {
         return $storedPath === '' ? '' : APP_URL . $storedPath;
     }
@@ -353,33 +356,311 @@ function videoEmbedUrl($url) {
     return $url;
 }
 
-function uploadPhoto($file) {
+function isRemoteUrl($value) {
+    return is_string($value) && preg_match('#^https?://#i', trim($value)) === 1;
+}
+
+function isSupabaseConfigured() {
+    return SUPABASE_URL !== '' || SUPABASE_BUCKET !== '' || SUPABASE_SERVICE_ROLE_KEY !== '' || SUPABASE_ANON_KEY !== '';
+}
+
+function hasCompleteSupabaseConfig() {
+    return SUPABASE_URL !== '' && SUPABASE_BUCKET !== '' && SUPABASE_SERVICE_ROLE_KEY !== '';
+}
+
+function getSupabaseConfigError() {
+    if (!isSupabaseConfigured()) {
+        return '';
+    }
+
+    $missing = [];
+    if (SUPABASE_URL === '') {
+        $missing[] = 'NCSM_SUPABASE_URL';
+    }
+    if (SUPABASE_BUCKET === '') {
+        $missing[] = 'NCSM_SUPABASE_BUCKET';
+    }
+    if (SUPABASE_SERVICE_ROLE_KEY === '') {
+        $missing[] = 'NCSM_SUPABASE_SERVICE_ROLE_KEY';
+    }
+
+    if (empty($missing)) {
+        return '';
+    }
+
+    return 'Supabase Storage is not fully configured. Missing: ' . implode(', ', $missing) . '.';
+}
+
+function buildSupabaseStorageObjectPath($folderSegment, $originalName, $prefix) {
+    $folderSegment = trim((string)$folderSegment, '/');
+    $extension = strtolower(pathinfo((string)$originalName, PATHINFO_EXTENSION));
+    $baseName = pathinfo((string)$originalName, PATHINFO_FILENAME);
+    $slug = preg_replace('/[^a-z0-9]+/i', '-', strtolower($baseName));
+    $slug = trim((string)$slug, '-');
+    if ($slug === '') {
+        $slug = 'image';
+    }
+
+    $filename = uniqid($prefix, true) . '-' . $slug;
+    if ($extension !== '') {
+        $filename .= '.' . $extension;
+    }
+
+    return ($folderSegment !== '' ? $folderSegment . '/' : '') . $filename;
+}
+
+function getSupabaseStoragePublicUrl($objectPath) {
+    $objectPath = ltrim((string)$objectPath, '/');
+    return SUPABASE_URL . '/storage/v1/object/public/' . rawurlencode(SUPABASE_BUCKET) . '/' . str_replace('%2F', '/', rawurlencode($objectPath));
+}
+
+function supabaseStorageRequest($method, $objectPath, $body = null, array $headers = []) {
+    if (!function_exists('curl_init')) {
+        return ['success' => false, 'error' => 'PHP cURL extension is required for Supabase Storage uploads.'];
+    }
+
+    $objectPath = ltrim((string)$objectPath, '/');
+    $url = SUPABASE_URL . '/storage/v1/object/' . rawurlencode(SUPABASE_BUCKET) . '/' . str_replace('%2F', '/', rawurlencode($objectPath));
+    $requestHeaders = array_merge([
+        'Authorization: Bearer ' . SUPABASE_SERVICE_ROLE_KEY,
+        'apikey: ' . (SUPABASE_ANON_KEY !== '' ? SUPABASE_ANON_KEY : SUPABASE_SERVICE_ROLE_KEY),
+        'x-upsert: true',
+    ], $headers);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+
+    if ($body !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    }
+
+    $response = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $statusCode = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+
+    if ($response === false) {
+        return ['success' => false, 'error' => 'Supabase Storage request failed: ' . $curlError];
+    }
+
+    if ($statusCode < 200 || $statusCode >= 300) {
+        $decoded = json_decode($response, true);
+        $message = '';
+        if (is_array($decoded)) {
+            $message = $decoded['message'] ?? $decoded['error'] ?? '';
+        }
+        if ($message === '') {
+            $message = 'Supabase Storage request failed with status ' . $statusCode . '.';
+        }
+        return ['success' => false, 'error' => $message];
+    }
+
+    return ['success' => true, 'body' => $response];
+}
+
+function uploadLocalImageToSupabase($sourcePath, $originalName, $folderSegment, $prefix) {
+    $configError = getSupabaseConfigError();
+    if ($configError !== '') {
+        return ['success' => false, 'error' => $configError];
+    }
+
+    if (!hasCompleteSupabaseConfig()) {
+        return ['success' => false, 'error' => 'Supabase Storage is not configured.'];
+    }
+
+    if (!is_file($sourcePath)) {
+        return ['success' => false, 'error' => 'The image file to upload was not found.'];
+    }
+
+    $contents = file_get_contents($sourcePath);
+    if ($contents === false) {
+        return ['success' => false, 'error' => 'Failed to read the image file for upload.'];
+    }
+
+    $mime = mime_content_type($sourcePath) ?: 'application/octet-stream';
+    $objectPath = buildSupabaseStorageObjectPath($folderSegment, $originalName, $prefix);
+    $result = supabaseStorageRequest('POST', $objectPath, $contents, [
+        'Content-Type: ' . $mime,
+        'Cache-Control: max-age=31536000',
+    ]);
+
+    if (!$result['success']) {
+        return $result;
+    }
+
+    return [
+        'success' => true,
+        'path' => getSupabaseStoragePublicUrl($objectPath),
+        'object_path' => $objectPath,
+    ];
+}
+
+function saveUploadedImageLocally($file, $destinationDir, $relativeDir, $prefix) {
+    $ext = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION));
+    $filename = uniqid($prefix, true) . ($ext !== '' ? '.' . $ext : '');
+    $dest = rtrim($destinationDir, '/\\') . DIRECTORY_SEPARATOR . $filename;
+
+    if (!is_dir($destinationDir) && !mkdir($destinationDir, 0755, true)) {
+        return ['success' => false, 'error' => 'Failed to create the upload directory.'];
+    }
+
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        return ['success' => false, 'error' => 'Failed to save file.'];
+    }
+
+    return [
+        'success' => true,
+        'filename' => $filename,
+        'path' => trim($relativeDir, '/') . '/' . $filename,
+    ];
+}
+
+function uploadManagedImage($file, $maxSize, $allowedTypes, $destinationDir, $relativeDir, $folderSegment, $prefix, $sizeLabel, $invalidTypeMessage) {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
         return ['success' => false, 'error' => getUploadErrorMessage($file['error'] ?? UPLOAD_ERR_NO_FILE)];
     }
 
-    if ($file['size'] > MAX_PHOTO_SIZE) return ['success' => false, 'error' => 'File too large. Max ' . formatBytesLabel(MAX_PHOTO_SIZE) . '.'];
+    if (($file['size'] ?? 0) > $maxSize) {
+        return ['success' => false, 'error' => $sizeLabel . ' too large. Max ' . formatBytesLabel($maxSize) . '.'];
+    }
 
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
 
-    if (!in_array($mime, ALLOWED_PHOTO_TYPES)) return ['success' => false, 'error' => 'Invalid file type. JPG, PNG, GIF only.'];
-
-    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = uniqid('photo_') . '.' . $ext;
-    $dest = PHOTO_PATH . $filename;
-
-    if (!is_dir(PHOTO_PATH)) mkdir(PHOTO_PATH, 0755, true);
-
-    if (move_uploaded_file($file['tmp_name'], $dest)) {
-        return [
-            'success' => true,
-            'filename' => $filename,
-            'path' => 'uploads/photos/' . $filename,
-        ];
+    if (!in_array($mime, $allowedTypes, true)) {
+        return ['success' => false, 'error' => $invalidTypeMessage];
     }
-    return ['success' => false, 'error' => 'Failed to save file.'];
+
+    if (hasCompleteSupabaseConfig()) {
+        return uploadLocalImageToSupabase($file['tmp_name'], $file['name'], $folderSegment, $prefix);
+    }
+
+    $configError = getSupabaseConfigError();
+    if ($configError !== '') {
+        return ['success' => false, 'error' => $configError];
+    }
+
+    return saveUploadedImageLocally($file, $destinationDir, $relativeDir, $prefix);
+}
+
+function uploadPhoto($file) {
+    return uploadManagedImage($file, MAX_PHOTO_SIZE, ALLOWED_PHOTO_TYPES, PHOTO_PATH, 'uploads/photos', 'players', 'photo_', 'Photo', 'Invalid file type. JPG, PNG, GIF only.');
+}
+
+function uploadGalleryPhoto($file) {
+    return uploadManagedImage($file, MAX_GALLERY_SIZE, ALLOWED_GALLERY_TYPES, GALLERY_PATH, 'uploads/gallery', 'gallery', 'gallery_', 'Photo', 'Only JPG, PNG, GIF, and WebP images are allowed.');
+}
+
+function getSupabaseObjectPathFromStoredImage($storedPath) {
+    $storedPath = trim((string)$storedPath);
+    if ($storedPath === '' || !isRemoteUrl($storedPath) || SUPABASE_URL === '' || SUPABASE_BUCKET === '') {
+        return '';
+    }
+
+    $publicPrefix = SUPABASE_URL . '/storage/v1/object/public/' . SUPABASE_BUCKET . '/';
+    if (strpos($storedPath, $publicPrefix) !== 0) {
+        return '';
+    }
+
+    $objectPath = substr($storedPath, strlen($publicPrefix));
+    return ltrim(rawurldecode($objectPath), '/');
+}
+
+function deleteSupabaseImage($storedPath) {
+    $objectPath = getSupabaseObjectPathFromStoredImage($storedPath);
+    if ($objectPath === '') {
+        return false;
+    }
+
+    $configError = getSupabaseConfigError();
+    if ($configError !== '') {
+        error_log($configError);
+        return false;
+    }
+
+    $result = supabaseStorageRequest('DELETE', $objectPath, null, ['x-upsert: false']);
+    if (!$result['success']) {
+        error_log('Supabase Storage delete failed for ' . $objectPath . ': ' . $result['error']);
+        return false;
+    }
+
+    return true;
+}
+
+function deleteManagedImage($storedPath) {
+    $storedPath = trim((string)$storedPath);
+    if ($storedPath === '') {
+        return true;
+    }
+
+    if (isRemoteUrl($storedPath)) {
+        return deleteSupabaseImage($storedPath);
+    }
+
+    $candidates = [];
+    if (strpos($storedPath, 'uploads/') === 0) {
+        $candidates[] = $storedPath;
+    } else {
+        $basename = basename($storedPath);
+        $candidates[] = 'uploads/photos/' . $basename;
+        $candidates[] = 'uploads/gallery/' . $basename;
+        $candidates[] = $storedPath;
+    }
+
+    foreach (array_values(array_unique($candidates)) as $candidate) {
+        $fullPath = resolveUploadCandidateFilePath($candidate);
+        if ($fullPath !== '' && file_exists($fullPath)) {
+            return unlink($fullPath);
+        }
+    }
+
+    return false;
+}
+
+function downloadRemoteFileToTemp($url, $prefix = 'ncsm-file-') {
+    if (!isRemoteUrl($url)) {
+        return '';
+    }
+
+    $pathPart = (string)parse_url($url, PHP_URL_PATH);
+    $extension = strtolower(pathinfo($pathPart, PATHINFO_EXTENSION));
+    if ($extension === '') {
+        $extension = 'tmp';
+    }
+
+    $tempPath = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . $prefix . md5($url) . '.' . $extension;
+    if (file_exists($tempPath) && filesize($tempPath) > 0) {
+        return $tempPath;
+    }
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 30,
+        ]);
+        $contents = curl_exec($ch);
+        $statusCode = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        if ($contents !== false && $statusCode >= 200 && $statusCode < 300) {
+            file_put_contents($tempPath, $contents);
+            return $tempPath;
+        }
+    }
+
+    $context = stream_context_create(['http' => ['timeout' => 30]]);
+    $contents = @file_get_contents($url, false, $context);
+    if ($contents === false) {
+        return '';
+    }
+
+    file_put_contents($tempPath, $contents);
+    return $tempPath;
 }
 
 function uploadDocument($file) {
@@ -712,8 +993,7 @@ function normalizePlayerPhotoPath($photoPath) {
     }
 
     if (preg_match('#^https?://#i', $photoPath)) {
-        $parsedPath = parse_url($photoPath, PHP_URL_PATH);
-        $photoPath = $parsedPath ? $parsedPath : $photoPath;
+        return $photoPath;
     }
 
     $photoPath = str_replace('\\', '/', $photoPath);
@@ -737,7 +1017,7 @@ function normalizePlayerPhotoPath($photoPath) {
 
 function getPlayerPhotoPathCandidates($photoPath) {
     $normalizedPath = normalizePlayerPhotoPath($photoPath);
-    if ($normalizedPath === '') {
+    if ($normalizedPath === '' || isRemoteUrl($normalizedPath)) {
         return [];
     }
 
@@ -775,6 +1055,11 @@ function resolveUploadCandidateFilePath($candidate) {
 }
 
 function getPlayerPhotoFilePath($photoPath) {
+    $normalizedPath = normalizePlayerPhotoPath($photoPath);
+    if ($normalizedPath !== '' && isRemoteUrl($normalizedPath)) {
+        return downloadRemoteFileToTemp($normalizedPath, 'ncsm-photo-');
+    }
+
     foreach (getPlayerPhotoPathCandidates($photoPath) as $candidate) {
         $fullPath = resolveUploadCandidateFilePath($candidate);
         if ($fullPath !== '') {
@@ -787,6 +1072,9 @@ function getPlayerPhotoFilePath($photoPath) {
 
 function getPlayerPhotoUrl($photoPath) {
     $normalizedPath = normalizePlayerPhotoPath($photoPath);
+    if ($normalizedPath !== '' && isRemoteUrl($normalizedPath)) {
+        return $normalizedPath;
+    }
     if ($normalizedPath !== '' && getPlayerPhotoFilePath($normalizedPath)) {
         return APP_URL . 'pages/players/photo.php?path=' . rawurlencode($normalizedPath);
     }
