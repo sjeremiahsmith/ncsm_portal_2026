@@ -11,6 +11,7 @@ $user = getCurrentUser();
 $sportFilter = isAssociationApprovalRole() ? (int)$_SESSION['user_association_id'] : null;
 $countyFilter = hasRole('county_coordinator') ? (int)getAssignedCountyId() : null;
 $groupFilter = isAdminRole() ? $_SESSION['user_group_label'] : null;
+$assignedGroupName = $groupFilter ? 'Group ' . $groupFilter : '';
 
 function buildCountSql($base, $extraCond, $sportFilter, $groupFilter, $countyFilter) {
     $join = $groupFilter ? " JOIN counties c ON p.county_id = c.id" : "";
@@ -67,7 +68,7 @@ $countyGroupCounts = $db->fetchAll(
     "SELECT c.group_label, COUNT(p.id) as count
      FROM counties c
      LEFT JOIN players p ON c.id = p.county_id" .
-     ($groupFilter ? " AND c.group_label = '" . $groupFilter . "'" : "") .
+     ($groupFilter ? " WHERE c.group_label = '" . $groupFilter . "'" : "") .
      " GROUP BY c.group_label
      ORDER BY c.group_label"
 );
@@ -80,7 +81,7 @@ $countyDetails = $db->fetchAll(
     "SELECT c.name, c.group_label, COUNT(p.id) as count
      FROM counties c
      LEFT JOIN players p ON c.id = p.county_id" .
-     ($groupFilter ? " AND c.group_label = '" . $groupFilter . "'" : "") .
+     ($groupFilter ? " WHERE c.group_label = '" . $groupFilter . "'" : "") .
      " GROUP BY c.id, c.name, c.group_label
      ORDER BY c.group_label, c.name"
 );
@@ -161,8 +162,14 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
         <div class="card stat-card bg-dark text-white">
             <div class="card-body">
                 <div class="stat-icon"><i class="bi bi-layers"></i></div>
-                <div class="stat-value"><?= count($countyData) ?></div>
-                <div class="stat-label text-white-50">Counties</div>
+                <?php if (isAdminRole()): ?>
+                    <div class="stat-value"><?= sanitize($groupFilter) ?></div>
+                    <div class="stat-label text-white-50">Assigned Group</div>
+                    <div class="small text-white-50 mt-1"><?= sanitize($assignedGroupName) ?></div>
+                <?php else: ?>
+                    <div class="stat-value"><?= count($countyData) ?></div>
+                    <div class="stat-label text-white-50">Counties</div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
