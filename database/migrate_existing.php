@@ -42,6 +42,31 @@ $tables = [
     'contact_messages', 'gallery_photos', 'videos',
 ];
 $batchSize = 250;
+$sportCodeById = [];
+$sourceSports = $source->query("SELECT id, association_code FROM `sports_disciplines`")->fetchAll();
+foreach ($sourceSports as $sourceSport) {
+    $sportCodeById[(int)$sourceSport['id']] = strtoupper((string)$sourceSport['association_code']);
+}
+
+$roleBySourceUserId = [];
+$sourceUsers = $source->query("SELECT id, role, association_id FROM `users`")->fetchAll();
+foreach ($sourceUsers as $sourceUserRow) {
+    $role = (string)$sourceUserRow['role'];
+    $associationId = isset($sourceUserRow['association_id']) ? (int)$sourceUserRow['association_id'] : 0;
+    $associationCode = $sportCodeById[$associationId] ?? null;
+
+    if (in_array($role, ['association_admin', 'lfa_administrator'], true)) {
+        $role = match ($associationCode) {
+            'LFA' => 'lfa_administrator',
+            'LKA' => 'lka_administrator',
+            'LBA' => 'lba_administrator',
+            'LAA' => 'laa_administrator',
+            default => 'lfa_administrator',
+        };
+    }
+
+    $roleBySourceUserId[(int)$sourceUserRow['id']] = $role;
+}
 
 $booleanColumns = ['is_read'];
 foreach ($tables as $table) {
@@ -62,11 +87,11 @@ foreach ($tables as $table) {
         do {
             $rows = $source->query("SELECT {$sourceColumns} FROM `{$table}` LIMIT {$batchSize} OFFSET {$offset}")->fetchAll();
             foreach ($rows as $row) {
-                if ($table === 'users' && isset($row['role']) && $row['role'] === 'association_admin') {
-                    $row['role'] = 'lfa_administrator';
+                if ($table === 'users' && isset($row['id'])) {
+                    $row['role'] = $roleBySourceUserId[(int)$row['id']] ?? $row['role'];
                 }
-                if ($table === 'approval_workflow' && isset($row['role_at_time']) && $row['role_at_time'] === 'association_admin') {
-                    $row['role_at_time'] = 'lfa_administrator';
+                if ($table === 'approval_workflow' && isset($row['action_by'])) {
+                    $row['role_at_time'] = $roleBySourceUserId[(int)$row['action_by']] ?? $row['role_at_time'];
                 }
                 $values = array_values($row);
                 foreach ($booleanColumns as $booleanColumn) {

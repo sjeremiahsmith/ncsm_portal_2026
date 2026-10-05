@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_name'] = $user['full_name'];
             $_SESSION['user_role'] = $user['role'];
             $_SESSION['user_county_id'] = $user['county_id'];
-            $_SESSION['user_association_id'] = $user['association_id'];
+            $_SESSION['user_association_id'] = getResolvedAssociationId($user['role'], $user['association_id']);
             $_SESSION['user_group_label'] = $user['group_label'] ?: null;
 
             if ($user['county_id']) {

@@ -119,8 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($status === 'submitted') {
                 $assocAdmins = $db->fetchAll(
-                    "SELECT id FROM users WHERE role = ? AND association_id = ? AND status = 'active'",
-                    ['lfa_administrator', $sport_discipline_id]
+                    "SELECT id FROM users WHERE role IN ('lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator') AND association_id = ? AND status = 'active'",
+                    [$sport_discipline_id]
                 );
                 foreach ($assocAdmins as $admin) {
                     createNotification(

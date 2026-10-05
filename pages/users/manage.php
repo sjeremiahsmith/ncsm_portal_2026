@@ -10,7 +10,7 @@ $counties = getCounties();
 $sports = getSports();
 $groups = getAssignableGroups();
 $errors = [];
-$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'match_commissioner'];
+$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'match_commissioner'];
 $validStatuses = ['active', 'inactive'];
 $showCreateForm = isset($_GET['create']);
 $roleFilter = $_GET['role'] ?? '';
@@ -30,7 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
         $groupLabel = strtoupper(trim($_POST['group_label'] ?? ''));
-        $associationId = (int)($_POST['association_id'] ?? 0);
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
 
@@ -41,7 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
-        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for LFA administrators.';
         if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
 
@@ -51,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existingEmail = $db->fetchOne("SELECT id FROM users WHERE email = ?", [$email]);
         if ($existingEmail) $errors[] = 'That email is already in use.';
 
+        $associationId = getResolvedAssociationId($role);
+        if (in_array($role, getAssociationApprovalRoles(), true) && $associationId === null) $errors[] = 'The selected discipline role is not linked to a sports discipline yet.';
+
         if (empty($errors)) {
             if ($role !== 'county_coordinator') {
                 $countyId = null;
@@ -58,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'group_admin') {
                 $groupLabel = null;
             }
-            if (!roleRequiresAssociationAssignment($role)) {
+            if (!in_array($role, getAssociationApprovalRoles(), true)) {
                 $associationId = null;
             }
 
@@ -82,7 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
         $groupLabel = strtoupper(trim($_POST['group_label'] ?? ''));
-        $associationId = (int)($_POST['association_id'] ?? 0);
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
 
@@ -94,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
-        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for LFA administrators.';
         if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
 
@@ -104,6 +103,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existingEmail = $db->fetchOne("SELECT id FROM users WHERE email = ? AND id <> ?", [$email, $id]);
         if ($existingEmail) $errors[] = 'That email is already in use.';
 
+        $associationId = getResolvedAssociationId($role);
+        if (in_array($role, getAssociationApprovalRoles(), true) && $associationId === null) $errors[] = 'The selected discipline role is not linked to a sports discipline yet.';
+
         if (empty($errors)) {
             if ($role !== 'county_coordinator') {
                 $countyId = null;
@@ -111,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'group_admin') {
                 $groupLabel = null;
             }
-            if (!roleRequiresAssociationAssignment($role)) {
+            if (!in_array($role, getAssociationApprovalRoles(), true)) {
                 $associationId = null;
             }
 
@@ -331,14 +333,9 @@ include __DIR__ . '/../../templates/header.php';
                 <div class="form-text">Assign a group when the role is Group Admin.</div>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Association</label>
-                <select name="association_id" class="form-select">
-                    <option value="0">None</option>
-                    <?php foreach ($sports as $sport): ?>
-                        <option value="<?= (int)$sport['id'] ?>"><?= sanitize($sport['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <div class="form-text">Assign an association when the role is LFA Administrator.</div>
+                <label class="form-label">Discipline Scope</label>
+                <input type="text" class="form-control" value="Discipline admin roles are linked automatically by selected role." readonly>
+                <div class="form-text">Use LFA, LKA, LBA, or LAA administrator roles to scope users to football, kickball, basketball, or athletics.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Password</label>
@@ -431,14 +428,9 @@ include __DIR__ . '/../../templates/header.php';
                 <div class="form-text">Assign a group when the role is Group Admin.</div>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Association</label>
-                <select name="association_id" class="form-select">
-                    <option value="0">None</option>
-                    <?php foreach ($sports as $sport): ?>
-                        <option value="<?= (int)$sport['id'] ?>" <?= (int)($editUser['association_id'] ?? 0) === (int)$sport['id'] ? 'selected' : '' ?>><?= sanitize($sport['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <div class="form-text">Assign an association when the role is LFA Administrator.</div>
+                <label class="form-label">Discipline Scope</label>
+                <input type="text" class="form-control" value="<?= sanitize($editUser['association_name'] ?? 'Discipline is linked automatically by selected role.') ?>" readonly>
+                <div class="form-text">LFA, LKA, LBA, and LAA administrator roles are scoped automatically by role.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">New Password</label>

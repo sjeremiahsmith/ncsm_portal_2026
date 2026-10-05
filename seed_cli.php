@@ -97,10 +97,19 @@ foreach ($countyAdmins as $ca) {
     }
 }
 
-// LFA Administrators
+// Discipline Administrators
 foreach ($sportIds as $code => $sportId) {
     $existingAssoc = $db->fetchOne("SELECT id FROM users WHERE username = ?", [strtolower($code) . '_admin']);
-    $role = 'lfa_administrator';
+    $role = match ($code) {
+        'LFA' => 'lfa_administrator',
+        'LKA' => 'lka_administrator',
+        'LBA' => 'lba_administrator',
+        'LAA' => 'laa_administrator',
+        default => null,
+    };
+    if ($role === null) {
+        continue;
+    }
     if (!$existingAssoc) {
         $db->insert(
             "INSERT INTO users (username, password, email, full_name, role, association_id, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",

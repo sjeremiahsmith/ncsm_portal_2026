@@ -7,6 +7,9 @@ function getRoleLabel($role) {
         'county_coordinator' => 'County Coordinator',
         'group_admin' => 'Group Admin',
         'lfa_administrator' => 'LFA Administrator',
+        'lka_administrator' => 'LKA Administrator',
+        'lba_administrator' => 'LBA Administrator',
+        'laa_administrator' => 'LAA Administrator',
         'match_commissioner' => 'Match Commissioner',
         'lofa_admin' => 'Lofa Admin',
         'bong_admin' => 'Bong Admin',
@@ -33,16 +36,44 @@ function canManageGames() {
     return hasRole(['super_admin', 'group_admin']);
 }
 
+function getAssociationApprovalRoleMap() {
+    return [
+        'lfa_administrator' => 'LFA',
+        'lka_administrator' => 'LKA',
+        'lba_administrator' => 'LBA',
+        'laa_administrator' => 'LAA',
+    ];
+}
+
 function getAssociationApprovalRoles() {
-    return ['lfa_administrator'];
+    return array_keys(getAssociationApprovalRoleMap());
 }
 
 function isAssociationApprovalRole() {
     return hasRole(getAssociationApprovalRoles());
 }
 
-function roleRequiresAssociationAssignment($role) {
-    return in_array($role, getAssociationApprovalRoles(), true);
+function getAssociationCodeForRole($role) {
+    $map = getAssociationApprovalRoleMap();
+    return $map[$role] ?? null;
+}
+
+function getApprovalRoleForAssociationCode($associationCode) {
+    return array_search($associationCode, getAssociationApprovalRoleMap(), true) ?: null;
+}
+
+function getResolvedAssociationId($role, $associationId = null) {
+    $associationCode = getAssociationCodeForRole($role);
+    if ($associationCode === null) {
+        return $associationId ? (int)$associationId : null;
+    }
+
+    $sport = getDb()->fetchOne(
+        "SELECT id FROM sports_disciplines WHERE association_code = ? LIMIT 1",
+        [$associationCode]
+    );
+
+    return $sport ? (int)$sport['id'] : null;
 }
 
 function getDb() {
@@ -61,14 +92,21 @@ function ensureUserRoleAssignments() {
     try {
         $db = getDb();
         $db->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS group_label VARCHAR(1)");
-        $db->query("UPDATE users SET role = 'lfa_administrator', updated_at = NOW() WHERE role = 'association_admin'");
-        $db->query("UPDATE approval_workflow SET role_at_time = 'lfa_administrator' WHERE role_at_time = 'association_admin'");
+        $db->query("UPDATE users u SET role = 'lfa_administrator', updated_at = NOW() FROM sports_disciplines s WHERE u.association_id = s.id AND u.role IN ('association_admin', 'lfa_administrator') AND s.association_code = 'LFA'");
+        $db->query("UPDATE users u SET role = 'lka_administrator', updated_at = NOW() FROM sports_disciplines s WHERE u.association_id = s.id AND u.role IN ('association_admin', 'lfa_administrator') AND s.association_code = 'LKA'");
+        $db->query("UPDATE users u SET role = 'lba_administrator', updated_at = NOW() FROM sports_disciplines s WHERE u.association_id = s.id AND u.role IN ('association_admin', 'lfa_administrator') AND s.association_code = 'LBA'");
+        $db->query("UPDATE users u SET role = 'laa_administrator', updated_at = NOW() FROM sports_disciplines s WHERE u.association_id = s.id AND u.role IN ('association_admin', 'lfa_administrator') AND s.association_code = 'LAA'");
+        $db->query("UPDATE users u SET association_id = s.id, updated_at = NOW() FROM sports_disciplines s WHERE u.role = 'lfa_administrator' AND s.association_code = 'LFA' AND COALESCE(u.association_id, 0) <> s.id");
+        $db->query("UPDATE users u SET association_id = s.id, updated_at = NOW() FROM sports_disciplines s WHERE u.role = 'lka_administrator' AND s.association_code = 'LKA' AND COALESCE(u.association_id, 0) <> s.id");
+        $db->query("UPDATE users u SET association_id = s.id, updated_at = NOW() FROM sports_disciplines s WHERE u.role = 'lba_administrator' AND s.association_code = 'LBA' AND COALESCE(u.association_id, 0) <> s.id");
+        $db->query("UPDATE users u SET association_id = s.id, updated_at = NOW() FROM sports_disciplines s WHERE u.role = 'laa_administrator' AND s.association_code = 'LAA' AND COALESCE(u.association_id, 0) <> s.id");
+        $db->query("UPDATE approval_workflow aw SET role_at_time = u.role FROM users u WHERE aw.action_by = u.id AND aw.role_at_time IN ('association_admin', 'lfa_administrator') AND u.role IN ('lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator')");
         $db->query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
-        $db->query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'match_commissioner'))");
+        $db->query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'match_commissioner'))");
         $db->query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_group_label_check");
         $db->query("ALTER TABLE users ADD CONSTRAINT users_group_label_check CHECK (group_label IS NULL OR group_label IN ('A', 'B', 'C', 'D'))");
         $db->query("ALTER TABLE approval_workflow DROP CONSTRAINT IF EXISTS approval_workflow_role_at_time_check");
-        $db->query("ALTER TABLE approval_workflow ADD CONSTRAINT approval_workflow_role_at_time_check CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'lfa_administrator', 'super_admin', 'match_commissioner'))");
+        $db->query("ALTER TABLE approval_workflow ADD CONSTRAINT approval_workflow_role_at_time_check CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'super_admin', 'match_commissioner'))");
     } catch (Throwable $e) {
         error_log('Role assignment schema sync failed: ' . $e->getMessage());
     }
