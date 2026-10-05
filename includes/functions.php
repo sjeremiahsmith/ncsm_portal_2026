@@ -119,7 +119,7 @@ function getAssignableGroups() {
 }
 
 function canRegisterPlayers() {
-    return hasRole(['super_admin', 'group_admin', 'county_coordinator']);
+    return hasRole(['super_admin', 'group_admin']);
 }
 
 function getAssignedCountyId() {
