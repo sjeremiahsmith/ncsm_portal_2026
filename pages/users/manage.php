@@ -10,9 +10,11 @@ $counties = getCounties();
 $sports = getSports();
 $groups = getAssignableGroups();
 $errors = [];
-$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'lfa_administrator', 'match_commissioner'];
+$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'match_commissioner'];
 $validStatuses = ['active', 'inactive'];
 $showCreateForm = isset($_GET['create']);
+$roleFilter = $_GET['role'] ?? '';
+$search = trim($_GET['search'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
@@ -39,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
-        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for association and LFA administrators.';
+        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for LFA administrators.';
         if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
 
@@ -92,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
-        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for association and LFA administrators.';
+        if (roleRequiresAssociationAssignment($role) && $associationId <= 0) $errors[] = 'Association is required for LFA administrators.';
         if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
 
@@ -166,17 +168,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $connection = $db->getConnection();
             $connection->beginTransaction();
 
-            if (roleRequiresAssociationAssignment($user['role'])) {
-                $replacementUserId = (int)$_SESSION['user_id'];
+            $replacementUserId = (int)$_SESSION['user_id'];
 
-                $db->update("UPDATE players SET registered_by = ? WHERE registered_by = ?", [$replacementUserId, $id]);
-                $db->update("UPDATE approval_workflow SET action_by = ? WHERE action_by = ?", [$replacementUserId, $id]);
-                $db->update("UPDATE matches SET created_by = ? WHERE created_by = ?", [$replacementUserId, $id]);
-                $db->update("UPDATE match_reports SET commissioner_id = ? WHERE commissioner_id = ?", [$replacementUserId, $id]);
-                $db->update("UPDATE documents SET uploaded_by = ? WHERE uploaded_by = ?", [$replacementUserId, $id]);
-                $db->update("UPDATE gallery_photos SET uploaded_by = NULL WHERE uploaded_by = ?", [$id]);
-                $db->update("UPDATE videos SET uploaded_by = NULL WHERE uploaded_by = ?", [$id]);
-            }
+            $db->update("UPDATE players SET registered_by = ? WHERE registered_by = ?", [$replacementUserId, $id]);
+            $db->update("UPDATE approval_workflow SET action_by = ? WHERE action_by = ?", [$replacementUserId, $id]);
+            $db->update("UPDATE matches SET created_by = ? WHERE created_by = ?", [$replacementUserId, $id]);
+            $db->update("UPDATE match_reports SET commissioner_id = ? WHERE commissioner_id = ?", [$replacementUserId, $id]);
+            $db->update("UPDATE documents SET uploaded_by = ? WHERE uploaded_by = ?", [$replacementUserId, $id]);
+            $db->update("UPDATE gallery_photos SET uploaded_by = NULL WHERE uploaded_by = ?", [$id]);
+            $db->update("UPDATE videos SET uploaded_by = NULL WHERE uploaded_by = ?", [$id]);
 
             $db->delete("DELETE FROM users WHERE id = ?", [$id]);
             $connection->commit();
@@ -193,12 +193,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$userWhere = [];
+$userParams = [];
+
+if ($roleFilter !== '') {
+    if (in_array($roleFilter, $validRoles, true)) {
+        $userWhere[] = "u.role = ?";
+        $userParams[] = $roleFilter;
+    } else {
+        $roleFilter = '';
+    }
+}
+
+if ($search !== '') {
+    $userWhere[] = "(u.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ?)";
+    $searchParam = '%' . $search . '%';
+    $userParams[] = $searchParam;
+    $userParams[] = $searchParam;
+    $userParams[] = $searchParam;
+}
+
+$userWhereSql = $userWhere ? 'WHERE ' . implode(' AND ', $userWhere) : '';
+
 $users = $db->fetchAll(
     "SELECT u.*, c.name AS county_name, s.name AS association_name
      FROM users u
      LEFT JOIN counties c ON u.county_id = c.id
      LEFT JOIN sports_disciplines s ON u.association_id = s.id
-     ORDER BY u.created_at DESC"
+     $userWhereSql
+     ORDER BY u.created_at DESC",
+    $userParams
 );
 
 $editUser = null;
@@ -314,7 +338,7 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$sport['id'] ?>"><?= sanitize($sport['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
-                <div class="form-text">Assign an association when the role is Association Admin or LFA Administrator.</div>
+                <div class="form-text">Assign an association when the role is LFA Administrator.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Password</label>
@@ -414,7 +438,7 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$sport['id'] ?>" <?= (int)($editUser['association_id'] ?? 0) === (int)$sport['id'] ? 'selected' : '' ?>><?= sanitize($sport['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
-                <div class="form-text">Assign an association when the role is Association Admin or LFA Administrator.</div>
+                <div class="form-text">Assign an association when the role is LFA Administrator.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">New Password</label>
@@ -443,6 +467,27 @@ include __DIR__ . '/../../templates/header.php';
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-people me-2"></i>All User Credentials</h5>
         <span class="badge bg-primary"><?= count($users) ?> User(s)</span>
+    </div>
+    <div class="card-body border-bottom bg-light-subtle">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small">Search Users</label>
+                <input type="text" name="search" class="form-control" value="<?= sanitize($search) ?>" placeholder="Search by name, username, or email">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Filter by Role</label>
+                <select name="role" class="form-select">
+                    <option value="">All Roles</option>
+                    <?php foreach ($validRoles as $roleOption): ?>
+                        <option value="<?= sanitize($roleOption) ?>" <?= $roleFilter === $roleOption ? 'selected' : '' ?>><?= sanitize(getRoleLabel($roleOption)) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-search me-1"></i>Filter</button>
+                <a href="<?= APP_URL ?>pages/users/manage.php" class="btn btn-outline-secondary flex-fill">Reset</a>
+            </div>
+        </form>
     </div>
     <div class="card-body p-0">
         <?php if (empty($users)): ?>

@@ -62,6 +62,12 @@ foreach ($tables as $table) {
         do {
             $rows = $source->query("SELECT {$sourceColumns} FROM `{$table}` LIMIT {$batchSize} OFFSET {$offset}")->fetchAll();
             foreach ($rows as $row) {
+                if ($table === 'users' && isset($row['role']) && $row['role'] === 'association_admin') {
+                    $row['role'] = 'lfa_administrator';
+                }
+                if ($table === 'approval_workflow' && isset($row['role_at_time']) && $row['role_at_time'] === 'association_admin') {
+                    $row['role_at_time'] = 'lfa_administrator';
+                }
                 $values = array_values($row);
                 foreach ($booleanColumns as $booleanColumn) {
                     $columnIndex = array_search($booleanColumn, $columnNames, true);

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     full_name VARCHAR(100) NOT NULL,
-    role VARCHAR(30) NOT NULL CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'association_admin', 'lfa_administrator', 'match_commissioner')),
+    role VARCHAR(30) NOT NULL CHECK (role IN ('super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'match_commissioner')),
     county_id INTEGER REFERENCES counties(id),
     group_label VARCHAR(1) CHECK (group_label IN ('A', 'B', 'C', 'D')),
     association_id INTEGER REFERENCES sports_disciplines(id),
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS approval_workflow (
     player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     action VARCHAR(20) NOT NULL CHECK (action IN ('submit', 'approve', 'reject', 'return_for_revision', 'draft')),
     action_by INTEGER NOT NULL REFERENCES users(id),
-    role_at_time VARCHAR(30) NOT NULL CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'association_admin', 'lfa_administrator', 'super_admin', 'match_commissioner')),
+    role_at_time VARCHAR(30) NOT NULL CHECK (role_at_time IN ('county_coordinator', 'group_admin', 'lfa_administrator', 'super_admin', 'match_commissioner')),
     comments TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

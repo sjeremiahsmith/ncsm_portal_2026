@@ -17,7 +17,7 @@ if (!$player) {
 }
 
 if (isAssociationApprovalRole()) {
-    setFlash('error', 'LFA and association administrators cannot edit players.');
+    setFlash('error', 'LFA administrators cannot edit players.');
     redirect(APP_URL . 'pages/dashboard.php');
 }
 
