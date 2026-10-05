@@ -21,9 +21,18 @@
             <img src="<?= APP_URL ?>assets/images/ncsm.png" alt="NCSM Logo" style="height:38px;width:38px;object-fit:contain;border-radius:50%;margin-right:8px;">
             <span class="fw-bold">NCSM</span>
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#publicNav" aria-controls="publicNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <div class="public-navbar-actions ms-auto">
+            <a class="public-live-pill <?= basename($_SERVER['PHP_SELF']) === 'public_livescore.php' ? 'active' : '' ?>" href="<?= APP_URL ?>pages/public_livescore.php">
+                <span class="public-live-pill-badge">
+                    <span class="public-live-pill-dot"></span>
+                    LIVE
+                </span>
+                <span class="public-live-pill-label">Live Score</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#publicNav" aria-controls="publicNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
         <div class="collapse navbar-collapse" id="publicNav">
             <ul class="navbar-nav ms-auto align-items-lg-center gap-1">
                 <li class="nav-item">
@@ -37,11 +46,6 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'contact.php' ? 'active' : '' ?>" href="<?= APP_URL ?>pages/contact.php">Contact Us</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-warning fw-bold <?= basename($_SERVER['PHP_SELF']) === 'public_livescore.php' ? 'active' : '' ?>" href="<?= APP_URL ?>pages/public_livescore.php">
-                        <i class="bi bi-broadcast me-1"></i>LiveScore
-                    </a>
                 </li>
                 <li class="nav-item mt-2 mt-lg-0">
                     <a class="btn btn-light btn-sm px-3 fw-semibold w-100 w-lg-auto" href="<?= APP_URL ?>auth/login.php">
