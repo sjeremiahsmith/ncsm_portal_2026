@@ -31,7 +31,61 @@ $submittedMatchId = 0;
 $submittedByPlayer = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
+    $action = $_POST['action'] ?? 'save_lineup';
     $matchId = (int)($_POST['match_id'] ?? 0);
+    if ($action === 'substitute') {
+        $match = $db->fetchOne(
+            "SELECT id FROM matches WHERE id = ? AND status = 'live' AND sport_discipline_id = ? AND (home_county_id = ? OR away_county_id = ?)",
+            [$matchId, $sportId, $countyId, $countyId]
+        );
+        $lineup = $match
+            ? $db->fetchOne("SELECT id FROM coach_lineups WHERE match_id = ? AND county_id = ?", [$matchId, $countyId])
+            : null;
+        $outgoingPlayerId = (int)($_POST['outgoing_player_id'] ?? 0);
+        $incomingPlayerId = (int)($_POST['incoming_player_id'] ?? 0);
+        $outgoing = $lineup
+            ? $db->fetchOne("SELECT id, player_name, player_position FROM coach_lineup_players WHERE lineup_id = ? AND player_id = ? AND player_type = 'starting'", [$lineup['id'], $outgoingPlayerId])
+            : null;
+        $incoming = $lineup
+            ? $db->fetchOne("SELECT id, player_name FROM coach_lineup_players WHERE lineup_id = ? AND player_id = ? AND player_type = 'substitute'", [$lineup['id'], $incomingPlayerId])
+            : null;
+
+        if (!$match || !$lineup || !$outgoing || !$incoming || $outgoingPlayerId === $incomingPlayerId) {
+            setFlash('error', 'Choose a current starter and a substitute from this county lineup during a live game.');
+            redirect(APP_URL . 'pages/games/lineup.php');
+        }
+        if (!isset($startingPositions[$outgoing['player_position']])) {
+            setFlash('error', 'The starter has no saved field position. Update the lineup before making a substitution.');
+            redirect(APP_URL . 'pages/games/lineup.php');
+        }
+
+        $connection = $db->getConnection();
+        try {
+            $connection->beginTransaction();
+            $promoted = $db->update(
+                "UPDATE coach_lineup_players SET player_type = 'starting', position = ? WHERE id = ? AND player_type = 'substitute'",
+                [$outgoing['player_position'], $incoming['id']]
+            );
+            $replaced = $db->update(
+                "UPDATE coach_lineup_players SET player_type = 'substitute', position = '' WHERE id = ? AND player_type = 'starting'",
+                [$outgoing['id']]
+            );
+            if ($promoted !== 1 || $replaced !== 1) {
+                throw new RuntimeException('The lineup changed while the substitution was being saved.');
+            }
+            $connection->commit();
+            logActivity('coach_substitution', "Substituted {$outgoing['player_name']} for {$incoming['player_name']} in match #{$matchId}");
+            setFlash('success', sanitize($incoming['player_name']) . ' replaced ' . sanitize($outgoing['player_name']) . ' in the starting lineup.');
+        } catch (Throwable $exception) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+            error_log('Coach substitution failed: ' . $exception->getMessage());
+            setFlash('error', 'The substitution could not be completed. Refresh the lineup and try again.');
+        }
+        redirect(APP_URL . 'pages/games/lineup.php');
+    }
+
     $submittedMatchId = $matchId;
     $match = $db->fetchOne(
         "SELECT * FROM matches WHERE id = ? AND status = 'scheduled' AND sport_discipline_id = ? AND (home_county_id = ? OR away_county_id = ?)",
@@ -192,11 +246,13 @@ include __DIR__ . '/../../templates/header.php';
         : [];
     $savedByPlayer = [];
     $savedByPosition = [];
+    $savedStartingPlayers = [];
     $savedSubstitutes = [];
     foreach ($savedPlayers as $savedPlayer) {
         $savedByPlayer[(int)$savedPlayer['player_id']] = $savedPlayer;
         if ($savedPlayer['player_type'] === 'starting') {
             $savedByPosition[$savedPlayer['position']] = $savedPlayer;
+            $savedStartingPlayers[] = $savedPlayer;
         } else {
             $savedSubstitutes[] = $savedPlayer;
         }
@@ -249,6 +305,36 @@ include __DIR__ . '/../../templates/header.php';
                 <span class="coach-substitute-item">#<?= (int)$substitute['jersey_number'] ?> <?= sanitize($substitute['player_name']) ?></span>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
+            <?php if ($match['status'] === 'live' && $savedStartingPlayers && $savedSubstitutes): ?>
+            <form method="POST" class="border-top pt-3" onsubmit="return confirm('Make this substitution?');">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="substitute">
+                <input type="hidden" name="match_id" value="<?= (int)$match['id'] ?>">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small">Player leaving</label>
+                        <select name="outgoing_player_id" class="form-select form-select-sm" required>
+                            <option value="">Select a starter</option>
+                            <?php foreach ($savedStartingPlayers as $starter): if (!$starter['player_id']) continue; ?>
+                            <option value="<?= (int)$starter['player_id'] ?>">#<?= (int)$starter['jersey_number'] ?> <?= sanitize($starter['player_name']) ?> · <?= sanitize($startingPositions[$starter['position']] ?? '') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small">Player entering</label>
+                        <select name="incoming_player_id" class="form-select form-select-sm" required>
+                            <option value="">Select a substitute</option>
+                            <?php foreach ($savedSubstitutes as $substitute): if (!$substitute['player_id']) continue; ?>
+                            <option value="<?= (int)$substitute['player_id'] ?>">#<?= (int)$substitute['jersey_number'] ?> <?= sanitize($substitute['player_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-arrow-left-right me-1"></i>Substitute</button>
+                    </div>
+                </div>
+            </form>
             <?php endif; ?>
             <?php elseif (!$roster): ?>
                 <p class="text-muted mb-0">No approved players are registered for this county and sport.</p>
