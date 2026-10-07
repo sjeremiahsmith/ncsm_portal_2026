@@ -215,7 +215,7 @@
                         <?php if (hasRole(['super_admin'])): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?= APP_URL ?>pages/users/manage.php">
-                                <i class="bi bi-eye me-2"></i>See Users
+                                <i class="bi bi-eye me-2"></i>See &amp; Manage Users
                             </a>
                         </li>
                         <?php endif; ?>
