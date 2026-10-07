@@ -7,7 +7,7 @@ A full-featured web-based sports management system for the Ministry of Youth & S
 ### 👥 Role-Based Access
 - **Super Admin** — full system control: manage players, matches, documents, counties, reports, seed data
 - **Admin** — full portal access except user management, which remains Super Admin-only
-- **Coach** — assigned to one county; submits that county's match lineup during the hour before kickoff
+- **Coach** — assigned to one county and sport; selects approved players from that county and sport for fixtures during the hour before kickoff
 - **County Coordinator** — register and manage players within their assigned county group (A/B/C/D)
 - **Association Admin** — approve/reject player registrations for their specific sport (LFA, LKA, LBA, LAA)
 

@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = $_POST['role'] ?? '';
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
+        $sportId = (int)($_POST['sport_id'] ?? 0);
         $groupLabel = strtoupper(trim($_POST['group_label'] ?? ''));
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -52,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'coach' && $countyId <= 0) $errors[] = 'County is required for coaches.';
+        if ($role === 'coach' && $sportId <= 0) $errors[] = 'Sport is required for coaches.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
         if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
@@ -63,6 +65,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($existingEmail) $errors[] = 'That email is already in use.';
 
         $associationId = getResolvedAssociationId($role);
+        if ($role === 'coach' && $sportId > 0) {
+            $coachSport = $db->fetchOne("SELECT id FROM sports_disciplines WHERE id = ? AND status = 'active'", [$sportId]);
+            if (!$coachSport) {
+                $errors[] = 'Select an active sport for the coach.';
+            } else {
+                $associationId = (int)$coachSport['id'];
+            }
+        }
         if (in_array($role, getAssociationApprovalRoles(), true) && $associationId === null) $errors[] = 'The selected discipline role is not linked to a sports discipline yet.';
 
         if (empty($errors)) {
@@ -72,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'group_admin') {
                 $groupLabel = null;
             }
-            if (!in_array($role, getAssociationApprovalRoles(), true)) {
+            if (!in_array($role, getAssociationApprovalRoles(), true) && $role !== 'coach') {
                 $associationId = null;
             }
 
@@ -95,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = $_POST['role'] ?? '';
         $status = $_POST['status'] ?? 'active';
         $countyId = (int)($_POST['county_id'] ?? 0);
+        $sportId = (int)($_POST['sport_id'] ?? 0);
         $groupLabel = strtoupper(trim($_POST['group_label'] ?? ''));
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -107,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
         if ($role === 'coach' && $countyId <= 0) $errors[] = 'County is required for coaches.';
+        if ($role === 'coach' && $sportId <= 0) $errors[] = 'Sport is required for coaches.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
         if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
@@ -118,6 +130,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($existingEmail) $errors[] = 'That email is already in use.';
 
         $associationId = getResolvedAssociationId($role);
+        if ($role === 'coach' && $sportId > 0) {
+            $coachSport = $db->fetchOne("SELECT id FROM sports_disciplines WHERE id = ? AND status = 'active'", [$sportId]);
+            if (!$coachSport) {
+                $errors[] = 'Select an active sport for the coach.';
+            } else {
+                $associationId = (int)$coachSport['id'];
+            }
+        }
         if (in_array($role, getAssociationApprovalRoles(), true) && $associationId === null) $errors[] = 'The selected discipline role is not linked to a sports discipline yet.';
 
         if (empty($errors)) {
@@ -127,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role !== 'group_admin') {
                 $groupLabel = null;
             }
-            if (!in_array($role, getAssociationApprovalRoles(), true)) {
+            if (!in_array($role, getAssociationApprovalRoles(), true) && $role !== 'coach') {
                 $associationId = null;
             }
 
@@ -347,8 +367,18 @@ include __DIR__ . '/../../templates/header.php';
                 </select>
                 <div class="form-text">Assign a group when the role is Group Admin.</div>
             </div>
+            <div class="col-md-4 js-sport-assignment">
+                <label class="form-label">Coach Sport</label>
+                <select name="sport_id" class="form-select">
+                    <option value="0">Select sport</option>
+                    <?php foreach ($sports as $sport): ?>
+                        <option value="<?= (int)$sport['id'] ?>" <?= (int)($_POST['sport_id'] ?? 0) === (int)$sport['id'] ? 'selected' : '' ?>><?= sanitize($sport['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Coaches are assigned to one sport.</div>
+            </div>
             <div class="col-md-6">
-                <label class="form-label">Discipline Scope</label>
+                <label class="form-label">Association Discipline</label>
                 <input type="text" class="form-control" value="Discipline admin roles are linked automatically by selected role." readonly>
                 <div class="form-text">Use LFA, LKA, LBA, or LAA administrator roles to scope users to football, kickball, basketball, or athletics.</div>
             </div>
@@ -442,8 +472,18 @@ include __DIR__ . '/../../templates/header.php';
                 </select>
                 <div class="form-text">Assign a group when the role is Group Admin.</div>
             </div>
+            <div class="col-md-4 js-sport-assignment">
+                <label class="form-label">Coach Sport</label>
+                <select name="sport_id" class="form-select">
+                    <option value="0">Select sport</option>
+                    <?php foreach ($sports as $sport): ?>
+                        <option value="<?= (int)$sport['id'] ?>" <?= (int)($editUser['association_id'] ?? 0) === (int)$sport['id'] ? 'selected' : '' ?>><?= sanitize($sport['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Coaches are assigned to one sport.</div>
+            </div>
             <div class="col-md-6">
-                <label class="form-label">Discipline Scope</label>
+                <label class="form-label">Association Discipline</label>
                 <input type="text" class="form-control" value="<?= sanitize($editUser['association_name'] ?? 'Discipline is linked automatically by selected role.') ?>" readonly>
                 <div class="form-text">LFA, LKA, LBA, and LAA administrator roles are scoped automatically by role.</div>
             </div>
@@ -511,7 +551,7 @@ include __DIR__ . '/../../templates/header.php';
                             <th>Role</th>
                             <th>County</th>
                             <th>Group</th>
-                            <th>Association</th>
+                            <th>Sport / Association</th>
                             <th>Password</th>
                             <th>Status</th>
                             <th>Created</th>
@@ -590,26 +630,35 @@ document.querySelectorAll('form').forEach(function(form) {
     var roleSelect = form.querySelector('.js-role-select');
     var countyWrap = form.querySelector('.js-county-assignment');
     var groupWrap = form.querySelector('.js-group-assignment');
-    if (!roleSelect || !countyWrap || !groupWrap) return;
+    var sportWrap = form.querySelector('.js-sport-assignment');
+    if (!roleSelect || !countyWrap || !groupWrap || !sportWrap) return;
 
     var countySelect = countyWrap.querySelector('select');
     var groupSelect = groupWrap.querySelector('select');
+    var sportSelect = sportWrap.querySelector('select');
 
     function syncAssignmentFields() {
         var role = roleSelect.value;
         var countyEnabled = role === 'county_coordinator' || role === 'coach';
         var groupEnabled = role === 'group_admin';
+        var sportEnabled = role === 'coach';
 
         countySelect.disabled = !countyEnabled;
         groupSelect.disabled = !groupEnabled;
+        sportSelect.disabled = !sportEnabled;
+        sportSelect.required = sportEnabled;
         countyWrap.classList.toggle('opacity-50', !countyEnabled);
         groupWrap.classList.toggle('opacity-50', !groupEnabled);
+        sportWrap.classList.toggle('opacity-50', !sportEnabled);
 
         if (!countyEnabled) {
             countySelect.value = '0';
         }
         if (!groupEnabled) {
             groupSelect.value = '';
+        }
+        if (!sportEnabled) {
+            sportSelect.value = '0';
         }
     }
 

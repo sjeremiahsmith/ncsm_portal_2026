@@ -7,9 +7,10 @@ ensureCoachLineupSchema();
 
 $db = getDb();
 $countyId = getAssignedCountyId();
-if (!$countyId) {
+$sportId = (int)($_SESSION['user_association_id'] ?? 0);
+if (!$countyId || $sportId <= 0) {
     http_response_code(403);
-    exit('This coach account has no assigned county.');
+    exit('This coach account needs an assigned county and sport.');
 }
 
 $error = '';
@@ -20,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $matchId = (int)($_POST['match_id'] ?? 0);
     $submittedMatchId = $matchId;
     $match = $db->fetchOne(
-        "SELECT * FROM matches WHERE id = ? AND status = 'scheduled' AND (home_county_id = ? OR away_county_id = ?)",
-        [$matchId, $countyId, $countyId]
+        "SELECT * FROM matches WHERE id = ? AND status = 'scheduled' AND sport_discipline_id = ? AND (home_county_id = ? OR away_county_id = ?)",
+        [$matchId, $sportId, $countyId, $countyId]
     );
     $matchStart = $match ? strtotime($match['match_date']) : false;
     if (!$match || !$matchStart || $matchStart <= time() || $matchStart > time() + 3600) {
@@ -114,9 +115,9 @@ $matches = $db->fetchAll(
      JOIN sports_disciplines s ON s.id = m.sport_discipline_id
      JOIN counties c1 ON c1.id = m.home_county_id
      JOIN counties c2 ON c2.id = m.away_county_id
-     WHERE m.status = 'scheduled' AND (m.home_county_id = ? OR m.away_county_id = ?) AND m.match_date >= ? AND m.match_date <= ?
+    WHERE m.status = 'scheduled' AND (m.home_county_id = ? OR m.away_county_id = ?) AND m.sport_discipline_id = ? AND m.match_date >= ? AND m.match_date <= ?
      ORDER BY m.match_date ASC",
-    [$countyId, $countyId, date('Y-m-d H:i:s', $now), date('Y-m-d H:i:s', $now + 3600)]
+    [$countyId, $countyId, $sportId, date('Y-m-d H:i:s', $now), date('Y-m-d H:i:s', $now + 3600)]
 );
 
 $pageTitle = 'Team Lineups';
@@ -136,7 +137,7 @@ include __DIR__ . '/../../templates/header.php';
 <?php endif; ?>
 
 <?php if (!$matches): ?>
-<div class="alert alert-info">There are no scheduled games for your county in the one-hour lineup window.</div>
+<div class="alert alert-info">There are no scheduled games for your county and sport in the one-hour lineup window.</div>
 <?php endif; ?>
 
 <?php foreach ($matches as $match): ?>
