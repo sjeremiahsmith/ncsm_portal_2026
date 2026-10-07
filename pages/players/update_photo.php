@@ -26,7 +26,12 @@ if ($player['status'] !== 'draft') {
     redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);
 }
 
-if (!hasRole('super_admin') && $_SESSION['user_id'] !== $player['registered_by']) {
+if (hasRole('coach')) {
+    setFlash('error', 'Coaches cannot update player registrations.');
+    redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);
+}
+
+if (!isPortalAdmin() && $_SESSION['user_id'] !== $player['registered_by']) {
     setFlash('error', 'You do not have permission to update this player\'s photo.');
     redirect(APP_URL . 'pages/players/view.php?id=' . $playerId);
 }

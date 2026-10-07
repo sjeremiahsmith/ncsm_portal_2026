@@ -21,12 +21,12 @@ if (isAssociationApprovalRole()) {
     redirect(APP_URL . 'pages/dashboard.php');
 }
 
-if (hasRole('county_coordinator')) {
-    setFlash('error', 'County coordinators cannot edit players.');
+if (hasRole(['county_coordinator', 'coach'])) {
+    setFlash('error', 'Your role cannot edit players.');
     redirect(APP_URL . 'pages/players/view.php?id=' . $id);
 }
 
-if (!hasRole('super_admin') && $player['status'] !== 'draft') {
+if (!isPortalAdmin() && $player['status'] !== 'draft') {
     setFlash('error', 'Only draft players can be edited.');
     redirect(APP_URL . 'pages/players/view.php?id=' . $id);
 }

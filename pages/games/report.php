@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 requireLogin();
-requireRole(['match_commissioner', 'super_admin']);
+requireRole(['match_commissioner', 'super_admin', 'admin']);
 
 $db = getDb();
 $msg = '';
@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <div class="card-footer bg-white py-2 text-end btn-print-hide" style="border-top:1px solid #eee;">
                     <a href="report_pdf.php?id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-danger" target="_blank"><i class="bi bi-filetype-pdf me-1"></i>PDF</a>
-                    <?php if ($_SESSION['user_id'] === $r['commissioner_id'] || hasRole('super_admin')): ?>
+                    <?php if ($_SESSION['user_id'] === $r['commissioner_id'] || isPortalAdmin()): ?>
                     <a href="?edit=<?= $r['id'] ?>" class="btn btn-sm btn-outline-secondary ms-1"><i class="bi bi-pencil me-1"></i>Edit</a>
                     <?php endif; ?>
                 </div>

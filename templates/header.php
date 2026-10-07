@@ -111,7 +111,7 @@
                                 <i class="bi bi-people me-2"></i>All Players
                             </a>
                         </li>
-                        <?php if (isAssociationApprovalRole()): ?>
+                        <?php if (isAssociationApprovalRole() || isPortalAdmin()): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'approvals') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/approvals/pending.php">
                                 <i class="bi bi-check2-square me-2"></i>Approvals
@@ -123,14 +123,14 @@
                             </a>
                         </li>
                         <?php endif; ?>
-                        <?php if (hasRole(['super_admin'])): ?>
+                        <?php if (isPortalAdmin()): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'counties') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/counties/manage.php">
                                 <i class="bi bi-geo-alt me-2"></i>Counties
                             </a>
                         </li>
                         <?php endif; ?>
-                        <?php if (!hasRole('county_coordinator')): ?>
+                        <?php if (!hasRole(['county_coordinator', 'coach'])): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'reports') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/reports/index.php">
                                 <i class="bi bi-bar-chart me-2"></i>Reports
@@ -147,10 +147,17 @@
                                 <i class="bi bi-trophy me-2"></i>Standings
                             </a>
                         </li>
-                        <?php if (hasRole(['match_commissioner', 'super_admin'])): ?>
+                        <?php if (hasRole('match_commissioner') || isPortalAdmin()): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'games/report') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/games/report.php">
                                 <i class="bi bi-clipboard-data me-2"></i>Match Reports
+                            </a>
+                        </li>
+                        <?php endif; ?>
+                        <?php if (hasRole('coach')): ?>
+                        <li class="nav-item">
+                            <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'games/lineup') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/games/lineup.php">
+                                <i class="bi bi-people me-2"></i>Team Lineups
                             </a>
                         </li>
                         <?php endif; ?>
@@ -159,7 +166,7 @@
                                 <i class="bi bi-folder me-2"></i>Documents
                             </a>
                         </li>
-                        <?php if (hasRole(['super_admin'])): ?>
+                        <?php if (isPortalAdmin()): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'messages') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/messages/list.php">
                                 <i class="bi bi-envelope me-2"></i>Messages

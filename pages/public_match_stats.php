@@ -30,11 +30,8 @@ $cards = [];
 $squads = ['home' => ['starting' => [], 'substitute' => []], 'away' => ['starting' => [], 'substitute' => []]];
 if ($report) {
     $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ?", [$report['id']]);
-    $squadRows = $db->fetchAll("SELECT * FROM match_squad_players WHERE report_id = ? ORDER BY team, player_type, jersey_number", [$report['id']]);
-    foreach ($squadRows as $s) {
-        $squads[$s['team']][$s['player_type']][] = ['jersey' => (int)$s['jersey_number'], 'name' => $s['player_name']];
-    }
 }
+$squads = mergeCoachLineupsIntoSquads($matchId, $match['home_county_id'], $match['away_county_id'], $squads);
 $goals = $db->fetchAll("SELECT * FROM match_goals WHERE match_id = ? ORDER BY minute, team", [$matchId]);
 $isLive = $match['status'] === 'live';
 

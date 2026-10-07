@@ -4,6 +4,10 @@ require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
 requireLogin();
+if (hasRole('coach')) {
+    setFlash('error', 'Reports are not available for coach accounts.');
+    redirect(APP_URL . 'pages/dashboard.php');
+}
 
 $db = getDb();
 

@@ -35,7 +35,7 @@ $galleryCategories = [
 
 $categoryTitle = $galleryCategories[$slug] ?? ucwords(str_replace('-', ' ', $slug));
 
-if (hasRole('super_admin') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_photo'])) {
+if (isPortalAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_photo'])) {
     requireCsrfToken();
     $caption = trim($_POST['caption'] ?? '');
     $newSlug = trim($_POST['category_slug'] ?? $slug);
@@ -60,7 +60,7 @@ if (hasRole('super_admin') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_P
     }
 }
 
-if (hasRole('super_admin') && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_photo'])) {
+if (isPortalAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_photo'])) {
     requireCsrfToken();
     $photoId = (int)($_POST['photo_id'] ?? 0);
     if ($photoId > 0) {
@@ -109,7 +109,7 @@ include __DIR__ . '/../templates/public_header.php';
             </div>
         <?php endif; ?>
 
-        <?php if (hasRole('super_admin')): ?>
+        <?php if (isPortalAdmin()): ?>
         <div class="card mb-4 shadow-sm">
             <div class="card-header bg-primary text-white">
                 <h6 class="mb-0"><i class="bi bi-upload me-2"></i>Upload Photo</h6>
@@ -161,7 +161,7 @@ include __DIR__ . '/../templates/public_header.php';
                             <small class="text-white"><?= htmlspecialchars($photo['caption']) ?></small>
                         </div>
                         <?php endif; ?>
-                        <?php if (hasRole('super_admin')): ?>
+                        <?php if (isPortalAdmin()): ?>
                         <form method="POST" class="position-absolute top-0 end-0 m-1" onsubmit="return confirm('Delete this photo?');">
                             <?= csrfField() ?>
                             <input type="hidden" name="delete_photo" value="1">

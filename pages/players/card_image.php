@@ -17,7 +17,7 @@ $db = getDb();
 $player = $db->fetchOne("SELECT p.*, c.group_label FROM players p JOIN counties c ON p.county_id = c.id WHERE p.id = ?", [$id]);
 if (!$player) sendError('Player not found.');
 
-$isSuperAdmin = hasRole('super_admin');
+$isSuperAdmin = isPortalAdmin();
 $isOwnCounty = isAdminRole() && isset($_SESSION['user_group_label']) && $_SESSION['user_group_label'] === $player['group_label'];
 $isSportsCoord = hasRole('sports_coord');
 

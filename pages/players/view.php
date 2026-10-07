@@ -54,7 +54,7 @@ $pageTitle = sanitize($player['full_name']);
             <div class="card-body text-center">
                 <div class="position-relative d-inline-block">
                     <img src="<?= getPlayerPhotoUrl($player['photo_path']) ?>" class="player-photo-lg mb-3" alt="">
-                    <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
+                    <?php if (!hasRole('coach') && !isAssociationApprovalRole() && (isPortalAdmin() || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
                     <button type="button" class="btn btn-sm btn-light rounded-circle position-absolute bottom-0 end-0 mb-2 me-1 shadow-sm" onclick="document.getElementById('photoInput').click()" title="Change Photo">
                         <i class="bi bi-camera"></i>
                     </button>
@@ -73,7 +73,7 @@ $pageTitle = sanitize($player['full_name']);
                 </div>
                 <hr>
                 <div class="d-grid gap-2">
-                    <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
+                    <?php if (!hasRole('coach') && !isAssociationApprovalRole() && (isPortalAdmin() || (isAdminRole() && $player['status'] === 'draft') || ($player['status'] === 'draft' && $_SESSION['user_id'] === $player['registered_by']))): ?>
                         <a href="<?= APP_URL ?>pages/players/edit.php?id=<?= $player['id'] ?>" class="btn btn-primary"><i class="bi bi-pencil"></i> Edit</a>
                         <?php if ($player['status'] === 'draft'): ?>
                         <form method="POST" action="<?= APP_URL ?>pages/players/edit.php?id=<?= $player['id'] ?>">
@@ -87,7 +87,7 @@ $pageTitle = sanitize($player['full_name']);
                         <a href="<?= APP_URL ?>pages/approvals/pending.php?player_id=<?= $player['id'] ?>" class="btn btn-warning"><i class="bi bi-check2-square"></i> Review Registration</a>
                     <?php endif; ?>
                     <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> Print</button>
-                    <?php if (hasRole('super_admin') || hasRole('county_coordinator') || isAdminRole() || hasRole('sports_coord')): ?>
+                    <?php if (isPortalAdmin() || hasRole('county_coordinator') || isAdminRole() || hasRole('sports_coord')): ?>
                     <a href="<?= APP_URL ?>pages/players/card_preview.php?id=<?= $player['id'] ?>" class="btn btn-outline-dark"><i class="bi bi-credit-card"></i> Player Card</a>
                     <?php endif; ?>
                 </div>

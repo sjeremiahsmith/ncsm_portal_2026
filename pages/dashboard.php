@@ -9,7 +9,7 @@ $db = getDb();
 $user = getCurrentUser();
 
 $sportFilter = isAssociationApprovalRole() ? (int)$_SESSION['user_association_id'] : null;
-$countyFilter = hasRole('county_coordinator') ? (int)getAssignedCountyId() : null;
+$countyFilter = hasRole(['county_coordinator', 'coach']) ? (int)getAssignedCountyId() : null;
 $groupFilter = isAdminRole() ? $_SESSION['user_group_label'] : null;
 $assignedGroupName = $groupFilter ? 'Group ' . $groupFilter : '';
 
@@ -235,10 +235,10 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= APP_URL ?>pages/players/view.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
-                                            <?php if (!isAssociationApprovalRole() && (hasRole('super_admin') || ($p['status'] === 'draft' && $_SESSION['user_id'] === $p['registered_by']))): ?>
+                                            <?php if (!isAssociationApprovalRole() && (isPortalAdmin() || ($p['status'] === 'draft' && $_SESSION['user_id'] === $p['registered_by']))): ?>
                                                 <a href="<?= APP_URL ?>pages/players/edit.php?id=<?= $p['id'] ?>" class="btn btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
                                             <?php endif; ?>
-                                            <?php if (hasRole('super_admin')): ?>
+                                            <?php if (isPortalAdmin()): ?>
                                                 <form method="POST" action="<?= APP_URL ?>pages/players/delete.php" class="d-inline" onsubmit="return confirm('Are you sure you want to delete <?= addslashes($p['full_name']) ?>? This action cannot be undone.')">
                                                     <?= csrfField() ?>
                                                     <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
@@ -283,7 +283,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
             </div>
         </div>
         <?php endif; ?>
-        <?php if (hasRole(['super_admin'])): ?>
+        <?php if (isPortalAdmin()): ?>
         <div class="card">
             <div class="card-header bg-white">
                 <h5 class="mb-0">Sports Distribution</h5>
@@ -296,7 +296,7 @@ $pageActions = canRegisterPlayers() ? '<a href="' . APP_URL . 'pages/players/reg
     </div>
 </div>
 
-<?php if (hasRole(['super_admin'])): ?>
+<?php if (isPortalAdmin()): ?>
 <div class="row g-3">
     <div class="col-md-6">
         <div class="card">
@@ -327,7 +327,7 @@ const sportsData = <?= json_encode($sportsData) ?>;
 const countyData = <?= json_encode($countyData) ?>;
 </script>
 
-<?php if (hasRole(['super_admin'])): ?>
+<?php if (isPortalAdmin()): ?>
 <?php
 $docErrors = [];
 $docSuccess = false;

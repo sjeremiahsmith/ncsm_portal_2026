@@ -10,9 +10,11 @@ $counties = getCounties();
 $sports = getSports();
 $groups = getAssignableGroups();
 $errors = [];
-$validRoles = ['super_admin', 'county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'match_commissioner'];
+$validRoles = ['super_admin', 'admin', 'coach', 'county_coordinator', 'group_admin', 'lfa_administrator', 'lka_administrator', 'lba_administrator', 'laa_administrator', 'match_commissioner'];
 $roleOptions = [
     'super_admin' => 'Super Admin',
+    'admin' => 'Admin',
+    'coach' => 'Coach',
     'county_coordinator' => 'County Coordinator',
     'group_admin' => 'Group Admin',
     'lfa_administrator' => 'Liberia Football Association Admin',
@@ -49,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role, $validRoles, true)) $errors[] = 'Invalid role selected.';
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
+        if ($role === 'coach' && $countyId <= 0) $errors[] = 'County is required for coaches.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
         if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'Password confirmation does not match.';
@@ -63,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($role, getAssociationApprovalRoles(), true) && $associationId === null) $errors[] = 'The selected discipline role is not linked to a sports discipline yet.';
 
         if (empty($errors)) {
-            if ($role !== 'county_coordinator') {
+            if (!in_array($role, ['county_coordinator', 'coach'], true)) {
                 $countyId = null;
             }
             if ($role !== 'group_admin') {
@@ -103,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role, $validRoles, true)) $errors[] = 'Invalid role selected.';
         if (!in_array($status, $validStatuses, true)) $errors[] = 'Invalid status selected.';
         if ($role === 'county_coordinator' && $countyId <= 0) $errors[] = 'County is required for county coordinators.';
+        if ($role === 'coach' && $countyId <= 0) $errors[] = 'County is required for coaches.';
         if ($role === 'group_admin' && !in_array($groupLabel, $groups, true)) $errors[] = 'Group is required for group admins.';
         if ($password !== '' && strlen($password) < 6) $errors[] = 'New password must be at least 6 characters.';
         if ($password !== $confirmPassword) $errors[] = 'New password confirmation does not match.';
@@ -117,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array($role, getAssociationApprovalRoles(), true) && $associationId === null) $errors[] = 'The selected discipline role is not linked to a sports discipline yet.';
 
         if (empty($errors)) {
-            if ($role !== 'county_coordinator') {
+            if (!in_array($role, ['county_coordinator', 'coach'], true)) {
                 $countyId = null;
             }
             if ($role !== 'group_admin') {
@@ -331,7 +335,7 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$county['id'] ?>"><?= sanitize($county['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
-                <div class="form-text">Assign a county when the role is County Coordinator.</div>
+                <div class="form-text">County Coordinators and Coaches must be assigned a county.</div>
             </div>
             <div class="col-md-4 js-group-assignment">
                 <label class="form-label">Group</label>
@@ -426,7 +430,7 @@ include __DIR__ . '/../../templates/header.php';
                         <option value="<?= (int)$county['id'] ?>" <?= (int)($editUser['county_id'] ?? 0) === (int)$county['id'] ? 'selected' : '' ?>><?= sanitize($county['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
-                <div class="form-text">Assign a county when the role is County Coordinator.</div>
+                <div class="form-text">County Coordinators and Coaches must be assigned a county.</div>
             </div>
             <div class="col-md-4 js-group-assignment">
                 <label class="form-label">Group</label>
@@ -593,7 +597,7 @@ document.querySelectorAll('form').forEach(function(form) {
 
     function syncAssignmentFields() {
         var role = roleSelect.value;
-        var countyEnabled = role === 'county_coordinator';
+        var countyEnabled = role === 'county_coordinator' || role === 'coach';
         var groupEnabled = role === 'group_admin';
 
         countySelect.disabled = !countyEnabled;

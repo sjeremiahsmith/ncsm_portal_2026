@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
-requireRole(getAssociationApprovalRoles());
+requireRole(array_merge(getAssociationApprovalRoles(), ['super_admin', 'admin']));
 
 $db = getDb();
 $user = getCurrentUser();
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $playerId > 0) {
 
         $player = $db->fetchOne("SELECT p.*, u.full_name as reg_name, u.id as reg_user_id, c.name as county_name, s.name as sport_name FROM players p JOIN users u ON p.registered_by = u.id JOIN counties c ON p.county_id = c.id JOIN sports_disciplines s ON p.sport_discipline_id = s.id WHERE p.id = ?", [$playerId]);
 
-        if (!$player || $player['sport_discipline_id'] != $_SESSION['user_association_id']) {
+        if (!$player || (isAssociationApprovalRole() && (int)$player['sport_discipline_id'] !== (int)$_SESSION['user_association_id'])) {
             setFlash('error', 'You do not have access to this player.');
             redirect(APP_URL . 'pages/approvals/pending.php');
         }
@@ -50,7 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $playerId > 0) {
     }
 }
 
+$pendingPlayer = null;
 if ($playerId > 0) {
+    $detailSportFilter = isAssociationApprovalRole() ? ' AND p.sport_discipline_id = ?' : '';
+    $detailParams = [$playerId];
+    if (isAssociationApprovalRole()) {
+        $detailParams[] = $_SESSION['user_association_id'];
+    }
     $pendingPlayer = $db->fetchOne(
         "SELECT p.*, c.name as county_name, c.group_label, s.name as sport_name, s.association_name,
                 u.full_name as registered_by_name, u.email as registered_by_email
@@ -58,8 +64,8 @@ if ($playerId > 0) {
          JOIN counties c ON p.county_id = c.id
          JOIN sports_disciplines s ON p.sport_discipline_id = s.id
          JOIN users u ON p.registered_by = u.id
-         WHERE p.id = ? AND p.status = 'submitted' AND p.sport_discipline_id = ?",
-        [$playerId, $_SESSION['user_association_id']]
+         WHERE p.id = ? AND p.status = 'submitted' $detailSportFilter",
+        $detailParams
     );
 
     if (!$pendingPlayer) {
@@ -70,7 +76,7 @@ if ($playerId > 0) {
 
 $whereExtra = '';
 $params = [];
-if (!hasRole('super_admin')) {
+if (isAssociationApprovalRole()) {
     $whereExtra = "AND p.sport_discipline_id = ?";
     $params[] = $_SESSION['user_association_id'];
 }

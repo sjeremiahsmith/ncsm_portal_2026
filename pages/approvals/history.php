@@ -3,13 +3,13 @@
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
-requireRole(getAssociationApprovalRoles());
+requireRole(array_merge(getAssociationApprovalRoles(), ['super_admin', 'admin']));
 
 $db = getDb();
 
 $whereExtra = '';
 $params = [];
-if (!hasRole('super_admin')) {
+if (isAssociationApprovalRole()) {
     $whereExtra = "AND p.sport_discipline_id = ?";
     $params[] = $_SESSION['user_association_id'];
 }
