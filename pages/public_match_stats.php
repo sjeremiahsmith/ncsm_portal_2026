@@ -231,10 +231,7 @@ include __DIR__ . '/../templates/public_header.php';
                     <h6 class="mb-0 fw-bold" style="font-size:0.85rem;"><i class="bi bi-people me-1"></i>Lineups</h6>
                 </div>
                 <div class="card-body py-2">
-                    <div class="row g-3">
-                        <div class="col-md-6 mb-3"><?= renderCoachLineupDiagram($squads['home'], $match['home_name'], 'home') ?></div>
-                        <div class="col-md-6 mb-3"><?= renderCoachLineupDiagram($squads['away'], $match['away_name'], 'away') ?></div>
-                    </div>
+                    <?= renderCoachMatchLineupDiagram($squads['home'], $match['home_name'], $squads['away'], $match['away_name']) ?>
                 </div>
             </div>
         </div>

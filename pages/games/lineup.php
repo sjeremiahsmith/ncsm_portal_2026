@@ -77,8 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($match['status'] === 'live') {
                 $db->insert(
-                    "INSERT INTO coach_lineup_substitutions (lineup_id, outgoing_player_id, incoming_player_id, outgoing_player_name, incoming_player_name, outgoing_jersey_number, incoming_jersey_number, position, substituted_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [$lineup['id'], $outgoingPlayerId, $incomingPlayerId, $outgoing['player_name'], $incoming['player_name'], $outgoing['jersey_number'], $incoming['jersey_number'], $outgoing['position'], $_SESSION['user_id']]
+                    "INSERT INTO coach_lineup_substitutions (lineup_id, outgoing_player_id, incoming_player_id, outgoing_player_name, incoming_player_name, outgoing_jersey_number, incoming_jersey_number, position, game_minute, substituted_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [$lineup['id'], $outgoingPlayerId, $incomingPlayerId, $outgoing['player_name'], $incoming['player_name'], $outgoing['jersey_number'], $incoming['jersey_number'], $outgoing['position'], getMatchMinuteLabel($match), $_SESSION['user_id']]
                 );
             }
             $db->update("UPDATE coach_lineups SET coach_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [$_SESSION['user_id'], $lineup['id']]);

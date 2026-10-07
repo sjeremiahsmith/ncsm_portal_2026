@@ -443,6 +443,27 @@ function renderGoalsPHP($goals, $team = null) {
 .live-formation-subs > div { display: flex; flex-wrap: wrap; gap: 3px; }
 .live-formation-subs span { padding: 2px 4px; border: 1px solid #dee2e6; border-radius: 3px; }
 .live-substitution-events { padding: 4px 0; font-size: .65rem; }
+.scorelineup-match-pitch { display: grid; padding: 8px; border: 2px solid #e6f4e9; border-radius: 6px; background: repeating-linear-gradient(0deg, #27804a, #27804a 34px, #2d8952 34px, #2d8952 68px); color: #fff; }
+.scorelineup-half { padding: 5px 0; }
+.scorelineup-half h6 { margin: 0 0 4px; font-size: .7rem; font-weight: 700; text-align: center; }
+.scorelineup-half.away { border-bottom: 1px solid rgba(255,255,255,.75); }
+.scorelineup-half.home { border-top: 1px solid rgba(255,255,255,.75); }
+.scorelineup-row { display: grid; gap: 4px; margin: 4px 0; }
+.scorelineup-row.attack, .scorelineup-row.midfield { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scorelineup-row.defense { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.scorelineup-row.goalkeeper { grid-template-columns: minmax(0, 1fr); width: 26%; margin-right: auto; margin-left: auto; }
+.scorelineup-slot { display: flex; min-width: 0; min-height: 42px; flex-direction: column; justify-content: center; align-items: center; padding: 3px; border: 1px solid rgba(255,255,255,.55); border-radius: 4px; background: rgba(10,55,29,.48); text-align: center; overflow-wrap: anywhere; }
+.scorelineup-position { font-size: .5rem; font-weight: 700; }
+.scorelineup-slot strong, .scorelineup-empty { font-size: .58rem; }
+.scorelineup-halfway { padding: 2px 0; border-top: 1px dashed rgba(255,255,255,.7); border-bottom: 1px dashed rgba(255,255,255,.7); text-align: center; font-size: .48rem; font-weight: 700; }
+.scorelineup-legacy { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.scorelineup-legacy small, .scorelineup-subs small { padding: 2px 4px; border: 1px solid rgba(255,255,255,.45); border-radius: 3px; font-size: .56rem; }
+.scorelineup-subs { margin-top: 4px; text-align: center; font-size: .58rem; }
+.scorelineup-subs > span { display: block; margin-bottom: 2px; font-weight: 700; }
+.scorelineup-subs > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.score-substitution-events { margin-top: 6px; padding: 5px; border: 1px solid #dee2e6; border-radius: 4px; background: #fff; }
+.score-substitution-events h6 { margin-bottom: 3px; font-size: .65rem; font-weight: 700; }
+.score-substitution-event { padding: 2px 0; font-size: .62rem; }
 </style>
 
 <script>
@@ -649,6 +670,63 @@ function renderSquad(squad, teamName) {
     return html;
 }
 
+function renderCoachMatchDiagram(homeSquad, homeName, awaySquad, awayName) {
+    var attack = ['Left Winger', 'Striker', 'Right Winger'];
+    var midfield = ['Left Central Midfielder', 'Defensive Midfielder', 'Right Central Midfielder'];
+    var defense = ['Left Back', 'Left Centre-Back', 'Right Centre-Back', 'Right Back'];
+    var goalkeeper = ['Goalkeeper'];
+
+    function renderHalf(squad, name, side, rows) {
+        var playersByPosition = {};
+        (squad.starting || []).forEach(function(player) {
+            if (player.position) playersByPosition[player.position] = player;
+        });
+        var html = '<section class="scorelineup-half ' + side + '"><h6>' + escapeLiveHtml(name) + '</h6>';
+        if (Object.keys(playersByPosition).length === 0) {
+            html += '<div class="scorelineup-legacy">';
+            (squad.starting || []).forEach(function(player) {
+                html += '<small>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</small>';
+            });
+            html += '</div>';
+        } else {
+            rows.forEach(function(row) {
+                html += '<div class="scorelineup-row ' + row.kind + '">';
+                row.positions.forEach(function(position) {
+                    var player = playersByPosition[position];
+                    html += '<div class="scorelineup-slot"><span class="scorelineup-position">' + escapeLiveHtml(position) + '</span>';
+                    html += player ? '<strong>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</strong>' : '<span class="scorelineup-empty">No player</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            });
+        }
+        if (squad.substitute && squad.substitute.length > 0) {
+            html += '<div class="scorelineup-subs"><span>Substitutes</span><div>';
+            squad.substitute.forEach(function(player) {
+                html += '<small>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</small>';
+            });
+            html += '</div></div>';
+        }
+        return html + '</section>';
+    }
+
+    return '<div class="scorelineup-match-pitch">'
+        + renderHalf(awaySquad, awayName, 'away', [
+            {kind: 'goalkeeper', positions: goalkeeper},
+            {kind: 'defense', positions: defense},
+            {kind: 'midfield', positions: midfield},
+            {kind: 'attack', positions: attack}
+        ])
+        + '<div class="scorelineup-halfway">HALFWAY</div>'
+        + renderHalf(homeSquad, homeName, 'home', [
+            {kind: 'attack', positions: attack},
+            {kind: 'midfield', positions: midfield},
+            {kind: 'defense', positions: defense},
+            {kind: 'goalkeeper', positions: goalkeeper}
+        ])
+        + '</div>';
+}
+
 function renderLiveMatch(match) {
     const timer = computeMatchPhase(match);
     const report = match.report || {};
@@ -724,14 +802,12 @@ function renderLiveMatch(match) {
 
         // Squads with Goals under each team
         html += '<hr class="my-1" style="border-color:#e9ecef;">';
-        html += '<div class="row">';
-        html += '<div class="col-6"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">' + match.home_name + '</small>';
+        html += '<div class="row"><div class="col-6"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">' + escapeLiveHtml(match.home_name) + '</small>';
         if (match.goals && match.goals.length > 0) { html += '<div class="mb-1">' + renderGoals(match.goals, 'home') + '</div>'; }
-        html += renderSquad(match.squads.home, match.home_name) + '</div>';
-        html += '<div class="col-6"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">' + match.away_name + '</small>';
+        html += '</div><div class="col-6"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">' + escapeLiveHtml(match.away_name) + '</small>';
         if (match.goals && match.goals.length > 0) { html += '<div class="mb-1">' + renderGoals(match.goals, 'away') + '</div>'; }
-        html += renderSquad(match.squads.away, match.away_name) + '</div>';
-        html += '</div>';
+        html += '</div></div>';
+        html += renderCoachMatchDiagram(match.squads.home, match.home_name, match.squads.away, match.away_name);
         html += renderSubstitutionEvents(match.substitutions);
     }
 
@@ -857,16 +933,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (!empty($m['goals'])): ?>
                     <div class="mb-1"><?= renderGoalsPHP($m['goals'], 'home') ?></div>
                     <?php endif; ?>
-                    <?= renderSquadPHP($m['squads']['home']) ?>
                 </div>
                 <div class="col-6">
                     <small class="text-muted d-block mb-1" style="font-size:0.65rem;"><?= sanitize($m['away_name']) ?></small>
                     <?php if (!empty($m['goals'])): ?>
                     <div class="mb-1"><?= renderGoalsPHP($m['goals'], 'away') ?></div>
                     <?php endif; ?>
-                    <?= renderSquadPHP($m['squads']['away']) ?>
                 </div>
             </div>
+            <?= renderCoachMatchLineupDiagram($m['squads']['home'], $m['home_name'], $m['squads']['away'], $m['away_name']) ?>
             <?= renderCoachSubstitutionEvents($m['substitutions'] ?? []) ?>
             <?php endif; ?>
         </div>

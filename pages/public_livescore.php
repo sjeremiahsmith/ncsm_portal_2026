@@ -501,14 +501,7 @@ include __DIR__ . '/../templates/public_header.php';
 
                             <?php if (!empty($squads['home']['starting']) || !empty($squads['away']['starting'])): ?>
                             <div class="match-details-section-card">
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-6">
-                                        <?= renderCoachLineupDiagram($squads['home'], $m['home_name'], 'home') ?>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <?= renderCoachLineupDiagram($squads['away'], $m['away_name'], 'away') ?>
-                                    </div>
-                                </div>
+                                <?= renderCoachMatchLineupDiagram($squads['home'], $m['home_name'], $squads['away'], $m['away_name']) ?>
                             </div>
                             <?php endif; ?>
                             <?= renderCoachSubstitutionEvents($substitutions) ?>

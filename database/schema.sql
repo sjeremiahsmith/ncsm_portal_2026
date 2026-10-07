@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS coach_lineup_substitutions (
     outgoing_jersey_number INTEGER NOT NULL,
     incoming_jersey_number INTEGER NOT NULL,
     position VARCHAR(50) NOT NULL,
+    game_minute VARCHAR(20) NOT NULL DEFAULT '',
     substituted_by INTEGER NOT NULL REFERENCES users(id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

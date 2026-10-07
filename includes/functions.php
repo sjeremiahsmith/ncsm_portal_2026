@@ -124,9 +124,11 @@ function ensureCoachLineupSchema() {
         outgoing_jersey_number INTEGER NOT NULL,
         incoming_jersey_number INTEGER NOT NULL,
         position VARCHAR(50) NOT NULL,
+        game_minute VARCHAR(20) NOT NULL DEFAULT '',
         substituted_by INTEGER NOT NULL REFERENCES users(id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )");
+    $db->query("ALTER TABLE coach_lineup_substitutions ADD COLUMN IF NOT EXISTS game_minute VARCHAR(20) NOT NULL DEFAULT ''");
 }
 
 function coachLineupPositionLabel($position) {
@@ -159,7 +161,7 @@ function getCoachLineupSubstitutions($matchId, $countyId = null) {
     $substitutions = getDb()->fetchAll(
         "SELECT cs.outgoing_player_name, cs.incoming_player_name,
                 cs.outgoing_jersey_number, cs.incoming_jersey_number,
-                cs.position, cs.created_at, c.name AS county_name
+                cs.position, cs.game_minute, cs.created_at, c.name AS county_name
          FROM coach_lineup_substitutions cs
          JOIN coach_lineups cl ON cl.id = cs.lineup_id
          JOIN counties c ON c.id = cl.county_id
@@ -174,6 +176,33 @@ function getCoachLineupSubstitutions($matchId, $countyId = null) {
     unset($substitution);
 
     return $substitutions;
+}
+
+function getMatchMinuteLabel(array $match) {
+    $elapsedSeconds = (int)($match['timer_offset'] ?? 0);
+    if (!empty($match['timer_kickoff'])) {
+        $elapsedSeconds += max(0, time() - strtotime($match['timer_kickoff']));
+    }
+
+    if ($elapsedSeconds >= 45 * 60 && $elapsedSeconds < 60 * 60) {
+        return 'HT';
+    }
+    if ($elapsedSeconds >= 60 * 60) {
+        $elapsedSeconds -= 15 * 60;
+    }
+
+    $minute = max(0, (int)floor($elapsedSeconds / 60));
+    if ($minute > 120) {
+        return '120+' . ($minute - 120) . "'";
+    }
+    if ($minute > 105) {
+        return '105+' . ($minute - 105) . "'";
+    }
+    if ($minute > 90) {
+        return '90+' . ($minute - 90) . "'";
+    }
+
+    return $minute . "'";
 }
 
 function renderCoachLineupDiagram(array $squad, $teamName, $team) {
@@ -232,6 +261,59 @@ function renderCoachLineupDiagram(array $squad, $teamName, $team) {
     return $html . '</section>';
 }
 
+function renderCoachMatchLineupDiagram(array $homeSquad, $homeName, array $awaySquad, $awayName) {
+    $renderHalf = static function (array $squad, $teamName, $team, array $rows) {
+        $playersByPosition = [];
+        foreach ($squad['starting'] ?? [] as $player) {
+            if (!empty($player['position'])) {
+                $playersByPosition[$player['position']] = $player;
+            }
+        }
+
+        $teamClass = $team === 'home' ? 'home' : 'away';
+        $html = '<section class="scorelineup-half ' . $teamClass . '"><h6>' . htmlspecialchars((string)$teamName, ENT_QUOTES, 'UTF-8') . '</h6>';
+        if ($playersByPosition) {
+            foreach ($rows as $index => $row) {
+                $html .= '<div class="scorelineup-row ' . ['attack', 'midfield', 'defense', 'goalkeeper'][$index] . '">';
+                foreach ($row as $position) {
+                    $player = $playersByPosition[$position] ?? null;
+                    $html .= '<div class="scorelineup-slot"><span class="scorelineup-position">' . htmlspecialchars($position, ENT_QUOTES, 'UTF-8') . '</span>';
+                    $html .= $player
+                        ? '<strong>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</strong>'
+                        : '<span class="scorelineup-empty">No player</span>';
+                    $html .= '</div>';
+                }
+                $html .= '</div>';
+            }
+        } else {
+            $html .= '<div class="scorelineup-legacy">';
+            foreach ($squad['starting'] ?? [] as $player) {
+                $html .= '<small>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</small>';
+            }
+            $html .= '</div>';
+        }
+        if (!empty($squad['substitute'])) {
+            $html .= '<div class="scorelineup-subs"><span>Substitutes</span><div>';
+            foreach ($squad['substitute'] as $substitute) {
+                $html .= '<small>#' . (int)$substitute['jersey'] . ' ' . htmlspecialchars((string)$substitute['name'], ENT_QUOTES, 'UTF-8') . '</small>';
+            }
+            $html .= '</div></div>';
+        }
+        return $html . '</section>';
+    };
+
+    $attack = ['Left Winger', 'Striker', 'Right Winger'];
+    $midfield = ['Left Central Midfielder', 'Defensive Midfielder', 'Right Central Midfielder'];
+    $defense = ['Left Back', 'Left Centre-Back', 'Right Centre-Back', 'Right Back'];
+    $goalkeeper = ['Goalkeeper'];
+
+    return '<div class="scorelineup-match-pitch">'
+        . $renderHalf($awaySquad, $awayName, 'away', [$goalkeeper, $defense, $midfield, $attack])
+        . '<div class="scorelineup-halfway"><span>HALFWAY</span></div>'
+        . $renderHalf($homeSquad, $homeName, 'home', [$attack, $midfield, $defense, $goalkeeper])
+        . '</div>';
+}
+
 function renderCoachSubstitutionEvents(array $substitutions) {
     if (!$substitutions) {
         return '';
@@ -246,7 +328,7 @@ function renderCoachSubstitutionEvents(array $substitutions) {
         if ($substitution['position'] !== '') {
             $html .= ' <small class="text-muted">(' . htmlspecialchars((string)$substitution['position'], ENT_QUOTES, 'UTF-8') . ')</small>';
         }
-        $html .= ' <small class="text-muted">' . htmlspecialchars((string)$substitution['created_at'], ENT_QUOTES, 'UTF-8') . '</small></div>';
+        $html .= ' <strong class="score-substitution-minute">' . htmlspecialchars((string)$substitution['game_minute'], ENT_QUOTES, 'UTF-8') . '</strong></div>';
     }
 
     return $html . '</section>';
