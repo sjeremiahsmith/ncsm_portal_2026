@@ -111,7 +111,7 @@
                                 <i class="bi bi-people me-2"></i>All Players
                             </a>
                         </li>
-                        <?php if (isAssociationApprovalRole() || isPortalAdmin()): ?>
+                        <?php if (isAssociationApprovalRole() || hasRole('super_admin')): ?>
                         <li class="nav-item">
                             <a class="nav-link <?= strpos($_SERVER['PHP_SELF'], 'approvals') !== false ? 'active' : '' ?>" href="<?= APP_URL ?>pages/approvals/pending.php">
                                 <i class="bi bi-check2-square me-2"></i>Approvals
