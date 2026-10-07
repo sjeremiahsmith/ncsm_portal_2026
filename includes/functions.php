@@ -110,8 +110,28 @@ function ensureCoachLineupSchema() {
         player_type VARCHAR(20) NOT NULL CHECK (player_type IN ('starting', 'substitute')),
         jersey_number INTEGER NOT NULL,
         player_name VARCHAR(100) NOT NULL,
+        position VARCHAR(50) NOT NULL DEFAULT '',
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )");
+    $db->query("ALTER TABLE coach_lineup_players ADD COLUMN IF NOT EXISTS position VARCHAR(50) NOT NULL DEFAULT ''");
+}
+
+function coachLineupPositionLabel($position) {
+    $labels = [
+        'left_winger' => 'Left Winger',
+        'striker' => 'Striker',
+        'right_winger' => 'Right Winger',
+        'left_midfielder' => 'Left Central Midfielder',
+        'defensive_midfielder' => 'Defensive Midfielder',
+        'right_midfielder' => 'Right Central Midfielder',
+        'left_back' => 'Left Back',
+        'left_center_back' => 'Left Centre-Back',
+        'right_center_back' => 'Right Centre-Back',
+        'right_back' => 'Right Back',
+        'goalkeeper' => 'Goalkeeper',
+    ];
+
+    return $labels[$position] ?? '';
 }
 
 function mergeCoachLineupsIntoSquads($matchId, $homeCountyId, $awayCountyId, array $squads) {
@@ -123,13 +143,14 @@ function mergeCoachLineupsIntoSquads($matchId, $homeCountyId, $awayCountyId, arr
         $team = (int)$lineup['county_id'] === (int)$homeCountyId ? 'home' : 'away';
         $squads[$team] = ['starting' => [], 'substitute' => []];
         $players = $db->fetchAll(
-            "SELECT jersey_number, player_name, player_type FROM coach_lineup_players WHERE lineup_id = ? ORDER BY player_type, jersey_number",
+            "SELECT jersey_number, player_name, player_type, position FROM coach_lineup_players WHERE lineup_id = ? ORDER BY player_type, jersey_number",
             [(int)$lineup['id']]
         );
         foreach ($players as $player) {
             $squads[$team][$player['player_type']][] = [
                 'jersey' => (int)$player['jersey_number'],
                 'name' => $player['player_name'],
+                'position' => coachLineupPositionLabel($player['position']),
             ];
         }
     }

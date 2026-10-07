@@ -504,7 +504,7 @@ include __DIR__ . '/../templates/public_header.php';
                                     <div class="col-12 col-md-6">
                                         <small class="squad-label"><?= sanitize($m['home_name']) ?> XI</small>
                                         <?php foreach ($squads['home']['starting'] as $p): ?>
-                                        <div class="squad-player"><span style="font-weight:600;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
+                                        <div class="squad-player"><span style="font-weight:600;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
                                         <?php endforeach; ?>
                                         <?php if (!empty($squads['home']['substitute'])): ?>
                                         <small class="squad-label d-block mt-2">Substitutes</small>
@@ -516,7 +516,7 @@ include __DIR__ . '/../templates/public_header.php';
                                     <div class="col-12 col-md-6">
                                         <small class="squad-label"><?= sanitize($m['away_name']) ?> XI</small>
                                         <?php foreach ($squads['away']['starting'] as $p): ?>
-                                        <div class="squad-player"><span style="font-weight:600;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
+                                        <div class="squad-player"><span style="font-weight:600;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
                                         <?php endforeach; ?>
                                         <?php if (!empty($squads['away']['substitute'])): ?>
                                         <small class="squad-label d-block mt-2">Substitutes</small>

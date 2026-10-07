@@ -246,7 +246,8 @@ function renderSquadPHP($squad) {
     if (!empty($squad['starting'])) {
         $html .= '<div class="fw-bold mb-1" style="font-size:0.65rem;color:#6c757d;">STARTING XI</div>';
         foreach ($squad['starting'] as $p) {
-            $html .= '<div class="player-item"><span class="jersey-num">' . $p['jersey'] . '</span> ' . $p['name'] . '</div>';
+            $position = !empty($p['position']) ? ' <small class="text-muted">' . htmlspecialchars($p['position'], ENT_QUOTES, 'UTF-8') . '</small>' : '';
+            $html .= '<div class="player-item"><span class="jersey-num">' . $p['jersey'] . '</span> ' . $p['name'] . $position . '</div>';
         }
     }
     if (!empty($squad['substitute'])) {
@@ -546,7 +547,7 @@ function renderSquad(squad) {
     if (squad.starting && squad.starting.length > 0) {
         html += '<div class="fw-bold mb-1" style="font-size:0.65rem;color:#6c757d;">STARTING XI</div>';
         squad.starting.forEach(function(p) {
-            html += '<div class="player-item"><span class="jersey-num">' + p.jersey + '</span> ' + p.name + '</div>';
+            html += '<div class="player-item"><span class="jersey-num">' + p.jersey + '</span> ' + p.name + (p.position ? ' <small class="text-muted">' + p.position + '</small>' : '') + '</div>';
         });
     }
     if (squad.substitute && squad.substitute.length > 0) {

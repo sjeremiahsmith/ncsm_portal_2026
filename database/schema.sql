@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS match_squad_players (
     player_type VARCHAR(20) NOT NULL CHECK (player_type IN ('starting', 'substitute')),
     jersey_number INTEGER NOT NULL,
     player_name VARCHAR(100) NOT NULL,
+    position VARCHAR(50) NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

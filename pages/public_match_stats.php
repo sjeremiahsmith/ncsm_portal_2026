@@ -236,7 +236,7 @@ include __DIR__ . '/../templates/public_header.php';
                                 <div class="card-header py-2" style="background:#dc3545;color:#fff;"><?= sanitize($match['home_name']) ?> Starting XI</div>
                                 <div class="card-body py-2">
                                     <?php foreach ($squads['home']['starting'] as $p): ?>
-                                    <div style="font-size:0.82rem;" class="mb-1"><span style="font-weight:700;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
+                                    <div style="font-size:0.82rem;" class="mb-1"><span style="font-weight:700;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
                                     <?php endforeach; ?>
                                     <?php if (!empty($squads['home']['substitute'])): ?>
                                     <hr class="my-2">
@@ -253,7 +253,7 @@ include __DIR__ . '/../templates/public_header.php';
                                 <div class="card-header py-2" style="background:#0d6efd;color:#fff;"><?= sanitize($match['away_name']) ?> Starting XI</div>
                                 <div class="card-body py-2">
                                     <?php foreach ($squads['away']['starting'] as $p): ?>
-                                    <div style="font-size:0.82rem;" class="mb-1"><span style="font-weight:700;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
+                                    <div style="font-size:0.82rem;" class="mb-1"><span style="font-weight:700;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
                                     <?php endforeach; ?>
                                     <?php if (!empty($squads['away']['substitute'])): ?>
                                     <hr class="my-2">
