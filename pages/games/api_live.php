@@ -32,6 +32,7 @@ foreach ($liveMatches as $m) {
         $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ?", [$report['id']]);
     }
     $squads = mergeCoachLineupsIntoSquads($m['id'], $m['home_county_id'], $m['away_county_id'], $squads);
+    $substitutions = getCoachLineupSubstitutions($m['id']);
     $goals = $db->fetchAll("SELECT * FROM match_goals WHERE match_id = ? ORDER BY minute ASC, team ASC", [$m['id']]);
     $result[] = [
         'id' => (int)$m['id'],
@@ -72,6 +73,7 @@ foreach ($liveMatches as $m) {
                 'goal_type' => $g['goal_type']
             ];
         }, $goals),
+        'substitutions' => $substitutions,
         'squads' => $squads
     ];
 }

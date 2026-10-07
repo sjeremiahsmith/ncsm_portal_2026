@@ -32,6 +32,7 @@ if ($report) {
     $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ?", [$report['id']]);
 }
 $squads = mergeCoachLineupsIntoSquads($matchId, $match['home_county_id'], $match['away_county_id'], $squads);
+$substitutions = getCoachLineupSubstitutions($matchId);
 $goals = $db->fetchAll("SELECT * FROM match_goals WHERE match_id = ? ORDER BY minute, team", [$matchId]);
 $isLive = $match['status'] === 'live';
 
@@ -230,47 +231,17 @@ include __DIR__ . '/../templates/public_header.php';
                     <h6 class="mb-0 fw-bold" style="font-size:0.85rem;"><i class="bi bi-people me-1"></i>Lineups</h6>
                 </div>
                 <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="squad-card">
-                                <div class="card-header py-2" style="background:#dc3545;color:#fff;"><?= sanitize($match['home_name']) ?> Starting XI</div>
-                                <div class="card-body py-2">
-                                    <?php foreach ($squads['home']['starting'] as $p): ?>
-                                    <div style="font-size:0.82rem;" class="mb-1"><span style="font-weight:700;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
-                                    <?php endforeach; ?>
-                                    <?php if (!empty($squads['home']['substitute'])): ?>
-                                    <hr class="my-2">
-                                    <small class="text-muted fw-bold" style="font-size:0.6rem;">SUBSTITUTES</small>
-                                    <?php foreach ($squads['home']['substitute'] as $p): ?>
-                                    <div style="font-size:0.75rem;color:#888;" class="mb-1"><span style="font-weight:600;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
-                                    <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="squad-card">
-                                <div class="card-header py-2" style="background:#0d6efd;color:#fff;"><?= sanitize($match['away_name']) ?> Starting XI</div>
-                                <div class="card-body py-2">
-                                    <?php foreach ($squads['away']['starting'] as $p): ?>
-                                    <div style="font-size:0.82rem;" class="mb-1"><span style="font-weight:700;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
-                                    <?php endforeach; ?>
-                                    <?php if (!empty($squads['away']['substitute'])): ?>
-                                    <hr class="my-2">
-                                    <small class="text-muted fw-bold" style="font-size:0.6rem;">SUBSTITUTES</small>
-                                    <?php foreach ($squads['away']['substitute'] as $p): ?>
-                                    <div style="font-size:0.75rem;color:#888;" class="mb-1"><span style="font-weight:600;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
-                                    <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3"><?= renderCoachLineupDiagram($squads['home'], $match['home_name'], 'home') ?></div>
+                        <div class="col-md-6 mb-3"><?= renderCoachLineupDiagram($squads['away'], $match['away_name'], 'away') ?></div>
                     </div>
                 </div>
             </div>
         </div>
         <?php endif; ?>
     </div>
+
+    <?= renderCoachSubstitutionEvents($substitutions) ?>
 
     <?php if ($report && $report['notes']): ?>
     <div class="card shadow-sm mt-4" style="border-radius:12px;">

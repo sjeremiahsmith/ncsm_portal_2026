@@ -312,6 +312,7 @@ include __DIR__ . '/../templates/public_header.php';
                 $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ?", [$report['id']]);
             }
             $squads = mergeCoachLineupsIntoSquads($m['id'], $m['home_county_id'], $m['away_county_id'], $squads);
+            $substitutions = getCoachLineupSubstitutions($m['id']);
             $goals = $db->fetchAll("SELECT * FROM match_goals WHERE match_id = ? ORDER BY minute, team", [$m['id']]);
             $isLive = $m['status'] === 'live';
         ?>
@@ -502,32 +503,15 @@ include __DIR__ . '/../templates/public_header.php';
                             <div class="match-details-section-card">
                                 <div class="row g-3">
                                     <div class="col-12 col-md-6">
-                                        <small class="squad-label"><?= sanitize($m['home_name']) ?> XI</small>
-                                        <?php foreach ($squads['home']['starting'] as $p): ?>
-                                        <div class="squad-player"><span style="font-weight:600;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
-                                        <?php endforeach; ?>
-                                        <?php if (!empty($squads['home']['substitute'])): ?>
-                                        <small class="squad-label d-block mt-2">Substitutes</small>
-                                        <?php foreach ($squads['home']['substitute'] as $p): ?>
-                                        <div class="squad-player"><span style="font-weight:600;color:#dc3545;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
-                                        <?php endforeach; ?>
-                                        <?php endif; ?>
+                                        <?= renderCoachLineupDiagram($squads['home'], $m['home_name'], 'home') ?>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <small class="squad-label"><?= sanitize($m['away_name']) ?> XI</small>
-                                        <?php foreach ($squads['away']['starting'] as $p): ?>
-                                        <div class="squad-player"><span style="font-weight:600;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?> <small class="text-muted"><?= sanitize($p['position'] ?? '') ?></small></div>
-                                        <?php endforeach; ?>
-                                        <?php if (!empty($squads['away']['substitute'])): ?>
-                                        <small class="squad-label d-block mt-2">Substitutes</small>
-                                        <?php foreach ($squads['away']['substitute'] as $p): ?>
-                                        <div class="squad-player"><span style="font-weight:600;color:#0d6efd;">#<?= $p['jersey'] ?></span> <?= sanitize($p['name']) ?></div>
-                                        <?php endforeach; ?>
-                                        <?php endif; ?>
+                                        <?= renderCoachLineupDiagram($squads['away'], $m['away_name'], 'away') ?>
                                     </div>
                                 </div>
                             </div>
                             <?php endif; ?>
+                            <?= renderCoachSubstitutionEvents($substitutions) ?>
                         </div>
                         <div class="modal-footer bg-white">
                             <a href="<?= APP_URL ?>pages/public_match_stats.php?id=<?= (int)$m['id'] ?>" class="btn btn-outline-primary">

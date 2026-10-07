@@ -61,6 +61,26 @@ img { max-width: 100%; height: auto; }
     transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
 }
 
+.scorelineup-team { min-width: 0; margin-bottom: 0.75rem; }
+.scorelineup-team h6 { margin: 0 0 0.4rem; font-size: .78rem; font-weight: 700; }
+.scorelineup-pitch { display: grid; gap: 5px; padding: 8px; border: 2px solid #e6f4e9; border-radius: 6px; background: repeating-linear-gradient(0deg, #27804a, #27804a 30px, #2d8952 30px, #2d8952 60px); color: #fff; }
+.scorelineup-row { display: grid; gap: 5px; }
+.scorelineup-row.attack, .scorelineup-row.midfield { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scorelineup-row.defense { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.scorelineup-row.goalkeeper { grid-template-columns: minmax(0, 1fr); width: 28%; margin: 0 auto; }
+.scorelineup-slot { display: flex; min-width: 0; min-height: 48px; flex-direction: column; justify-content: center; align-items: center; padding: 4px; border: 1px solid rgba(255,255,255,.55); border-radius: 4px; background: rgba(10,55,29,.48); text-align: center; overflow-wrap: anywhere; }
+.scorelineup-position { font-size: .55rem; font-weight: 700; }
+.scorelineup-slot strong, .scorelineup-empty { font-size: .62rem; }
+.scorelineup-empty { opacity: .65; }
+.scorelineup-subs { margin-top: .4rem; font-size: .68rem; }
+.scorelineup-subs > span { display: block; margin-bottom: .2rem; font-weight: 700; text-transform: uppercase; }
+.scorelineup-subs > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.scorelineup-subs small { padding: 2px 5px; border: 1px solid #d6d9dc; border-radius: 3px; }
+.score-substitution-events { margin-top: .75rem; padding: .65rem; border: 1px solid #dee2e6; border-radius: 4px; background: #fff; }
+.score-substitution-events h6 { margin-bottom: .35rem; font-size: .75rem; font-weight: 700; }
+.score-substitution-event { padding: 3px 0; font-size: .72rem; }
+@media (max-width: 575px) { .scorelineup-row { gap: 3px; } .scorelineup-slot { min-height: 42px; padding: 3px 2px; } .scorelineup-position { font-size: .48rem; } .scorelineup-slot strong, .scorelineup-empty { font-size: .54rem; } }
+
 .public-live-pill:hover,
 .public-live-pill:focus {
     color: #fff;

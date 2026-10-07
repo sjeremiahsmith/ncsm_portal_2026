@@ -105,6 +105,7 @@ foreach ($liveMatches as $m) {
         $cards = $db->fetchAll("SELECT * FROM match_report_cards WHERE report_id = ?", [$report['id']]);
     }
     $squads = mergeCoachLineupsIntoSquads($m['id'], $m['home_county_id'], $m['away_county_id'], $squads);
+    $substitutions = getCoachLineupSubstitutions($m['id']);
     $goals = $db->fetchAll("SELECT * FROM match_goals WHERE match_id = ? ORDER BY minute ASC, team ASC", [$m['id']]);
     $liveMatchData[] = [
         'id' => (int)$m['id'],
@@ -133,6 +134,7 @@ foreach ($liveMatches as $m) {
         'goals' => array_map(function($g) {
             return ['team' => $g['team'], 'jersey' => (int)$g['jersey_number'], 'name' => $g['player_name'], 'minute' => $g['minute'] !== null ? (int)$g['minute'] : null, 'type' => $g['goal_type']];
         }, $goals),
+        'substitutions' => $substitutions,
         'squads' => $squads
     ];
 }
@@ -241,22 +243,53 @@ function renderCardEventsPHP($cards) {
 }
 
 function renderSquadPHP($squad) {
-    if (empty($squad)) return '<span class="text-muted" style="font-size:0.7rem;">No squad data</span>';
-    $html = '<div class="squad-list">';
-    if (!empty($squad['starting'])) {
-        $html .= '<div class="fw-bold mb-1" style="font-size:0.65rem;color:#6c757d;">STARTING XI</div>';
-        foreach ($squad['starting'] as $p) {
-            $position = !empty($p['position']) ? ' <small class="text-muted">' . htmlspecialchars($p['position'], ENT_QUOTES, 'UTF-8') . '</small>' : '';
-            $html .= '<div class="player-item"><span class="jersey-num">' . $p['jersey'] . '</span> ' . $p['name'] . $position . '</div>';
+    $formationRows = [
+        ['Left Winger', 'Striker', 'Right Winger'],
+        ['Left Central Midfielder', 'Defensive Midfielder', 'Right Central Midfielder'],
+        ['Left Back', 'Left Centre-Back', 'Right Centre-Back', 'Right Back'],
+        ['Goalkeeper'],
+    ];
+    $playersByPosition = [];
+    foreach ($squad['starting'] ?? [] as $player) {
+        if (!empty($player['position'])) {
+            $playersByPosition[$player['position']] = $player;
         }
     }
-    if (!empty($squad['substitute'])) {
-        $html .= '<div class="fw-bold mt-1 mb-1" style="font-size:0.65rem;color:#6c757d;">SUBSTITUTES</div>';
-        foreach ($squad['substitute'] as $p) {
-            $html .= '<div class="player-item"><span class="jersey-num">' . $p['jersey'] . '</span> ' . $p['name'] . '</div>';
+    if (empty($playersByPosition)) {
+        if (empty($squad['starting']) && empty($squad['substitute'])) {
+            return '<span class="text-muted" style="font-size:0.7rem;">No squad data</span>';
         }
+        $html = '<div class="squad-list"><strong class="d-block mb-1">' . htmlspecialchars($teamName, ENT_QUOTES, 'UTF-8') . ' Lineup</strong>';
+        foreach ($squad['starting'] ?? [] as $player) {
+            $html .= '<div class="player-item">#' . (int)$player['jersey'] . ' ' . htmlspecialchars($player['name'], ENT_QUOTES, 'UTF-8') . '</div>';
+        }
+        foreach ($squad['substitute'] ?? [] as $player) {
+            $html .= '<div class="player-item">#' . (int)$player['jersey'] . ' ' . htmlspecialchars($player['name'], ENT_QUOTES, 'UTF-8') . ' <small>(Sub)</small></div>';
+        }
+        return $html . '</div>';
+    }
+    $html = '<div class="live-formation-pitch">';
+    foreach ($formationRows as $index => $row) {
+        $rowClass = ['attack', 'midfield', 'defense', 'goalkeeper'][$index];
+        $html .= '<div class="live-formation-row ' . $rowClass . '">';
+        foreach ($row as $position) {
+            $player = $playersByPosition[$position] ?? null;
+            $html .= '<div class="live-formation-slot"><small>' . htmlspecialchars($position, ENT_QUOTES, 'UTF-8') . '</small>';
+            $html .= $player
+                ? '<strong>#' . (int)$player['jersey'] . ' ' . htmlspecialchars($player['name'], ENT_QUOTES, 'UTF-8') . '</strong>'
+                : '<span>No player</span>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
     }
     $html .= '</div>';
+    if (!empty($squad['substitute'])) {
+        $html .= '<div class="live-formation-subs"><strong>SUBSTITUTES</strong><div>';
+        foreach ($squad['substitute'] as $player) {
+            $html .= '<span>#' . (int)$player['jersey'] . ' ' . htmlspecialchars($player['name'], ENT_QUOTES, 'UTF-8') . '</span>';
+        }
+        $html .= '</div></div>';
+    }
     return $html;
 }
 
@@ -397,6 +430,19 @@ function renderGoalsPHP($goals, $team = null) {
     font-weight: 700;
     color: #495057;
 }
+.live-formation-pitch { display: grid; gap: 4px; padding: 6px; border: 2px solid #e4f2e7; border-radius: 5px; background: repeating-linear-gradient(0deg, #277d48, #277d48 28px, #2c8750 28px, #2c8750 56px); }
+.live-formation-row { display: grid; gap: 4px; }
+.live-formation-row.attack, .live-formation-row.midfield { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.live-formation-row.defense { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.live-formation-row.goalkeeper { grid-template-columns: minmax(0, 1fr); width: 30%; margin: 0 auto; }
+.live-formation-slot { display: flex; min-width: 0; min-height: 45px; flex-direction: column; justify-content: center; align-items: center; padding: 3px 2px; border: 1px solid rgba(255,255,255,.55); border-radius: 4px; background: rgba(9,55,29,.48); color: #fff; text-align: center; overflow-wrap: anywhere; }
+.live-formation-slot small { font-size: .48rem; font-weight: 700; }
+.live-formation-slot strong, .live-formation-slot span { font-size: .58rem; }
+.live-formation-subs { margin-top: 4px; font-size: .6rem; }
+.live-formation-subs > strong { display: block; margin-bottom: 2px; }
+.live-formation-subs > div { display: flex; flex-wrap: wrap; gap: 3px; }
+.live-formation-subs span { padding: 2px 4px; border: 1px solid #dee2e6; border-radius: 3px; }
+.live-substitution-events { padding: 4px 0; font-size: .65rem; }
 </style>
 
 <script>
@@ -520,6 +566,26 @@ function renderCardEvents(cards) {
     return html;
 }
 
+function escapeLiveHtml(value) {
+    return String(value).replace(/[&<>"']/g, function(character) {
+        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character];
+    });
+}
+
+function renderSubstitutionEvents(substitutions) {
+    if (!substitutions || substitutions.length === 0) return '';
+    let html = '<div class="mt-2"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">SUBSTITUTIONS</small>';
+    substitutions.forEach(function(substitution) {
+        html += '<div class="small mb-1">' + escapeLiveHtml(substitution.county_name) + ': ';
+        html += '<span class="text-danger"><i class="bi bi-arrow-down-circle-fill"></i> #' + substitution.outgoing_jersey_number + ' ' + escapeLiveHtml(substitution.outgoing_player_name) + '</span> ';
+        html += '<i class="bi bi-arrow-right text-muted mx-1"></i> ';
+        html += '<span class="text-success"><i class="bi bi-arrow-up-circle-fill"></i> #' + substitution.incoming_jersey_number + ' ' + escapeLiveHtml(substitution.incoming_player_name) + '</span>';
+        if (substitution.position) html += ' <small class="text-muted">(' + escapeLiveHtml(substitution.position) + ')</small>';
+        html += '</div>';
+    });
+    return html + '</div>';
+}
+
 function renderGoals(goals, team) {
     if (!goals || goals.length === 0) return '';
     var filtered = team ? goals.filter(function(g) { return g.team === team; }) : goals;
@@ -541,22 +607,45 @@ function renderGoals(goals, team) {
     return html;
 }
 
-function renderSquad(squad) {
+function renderSquad(squad, teamName) {
     if (!squad) return '<span class="text-muted" style="font-size:0.7rem;">No squad data</span>';
-    let html = '<div class="squad-list">';
-    if (squad.starting && squad.starting.length > 0) {
-        html += '<div class="fw-bold mb-1" style="font-size:0.65rem;color:#6c757d;">STARTING XI</div>';
-        squad.starting.forEach(function(p) {
-            html += '<div class="player-item"><span class="jersey-num">' + p.jersey + '</span> ' + p.name + (p.position ? ' <small class="text-muted">' + p.position + '</small>' : '') + '</div>';
+    var formationRows = [
+        [['Left Winger', 'Left Winger'], ['Striker', 'Striker'], ['Right Winger', 'Right Winger']],
+        [['Left Central Midfielder', 'Left Central Midfielder'], ['Defensive Midfielder', 'Defensive Midfielder'], ['Right Central Midfielder', 'Right Central Midfielder']],
+        [['Left Back', 'Left Back'], ['Left Centre-Back', 'Left Centre-Back'], ['Right Centre-Back', 'Right Centre-Back'], ['Right Back', 'Right Back']],
+        [['Goalkeeper', 'Goalkeeper']]
+    ];
+    var positionedPlayers = (squad.starting || []).filter(function(player) { return !!player.position; });
+    var html = '';
+    if (positionedPlayers.length > 0) {
+        var playersByPosition = {};
+        positionedPlayers.forEach(function(player) { playersByPosition[player.position] = player; });
+        html += '<section class="live-formation"><strong class="d-block mb-1">' + escapeLiveHtml(teamName) + ' Starting XI</strong><div class="live-formation-pitch">';
+        formationRows.forEach(function(row, rowIndex) {
+            html += '<div class="live-formation-row ' + ['attack', 'midfield', 'defense', 'goalkeeper'][rowIndex] + '">';
+            row.forEach(function(position) {
+                var player = playersByPosition[position[0]];
+                html += '<div class="live-formation-slot"><small>' + escapeLiveHtml(position[1]) + '</small>';
+                html += player ? '<strong>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</strong>' : '<span>No player</span>';
+                html += '</div>';
+            });
+            html += '</div>';
         });
+        html += '</div></section>';
+    } else if (squad.starting && squad.starting.length > 0) {
+        html += '<div class="squad-list"><strong class="d-block mb-1">' + escapeLiveHtml(teamName) + ' Starting XI</strong>';
+        squad.starting.forEach(function(player) {
+            html += '<div class="player-item">#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</div>';
+        });
+        html += '</div>';
     }
     if (squad.substitute && squad.substitute.length > 0) {
-        html += '<div class="fw-bold mt-1 mb-1" style="font-size:0.65rem;color:#6c757d;">SUBSTITUTES</div>';
+        html += '<div class="live-formation-subs"><strong>SUBSTITUTES</strong><div>';
         squad.substitute.forEach(function(p) {
-            html += '<div class="player-item"><span class="jersey-num">' + p.jersey + '</span> ' + p.name + '</div>';
+            html += '<span>#' + p.jersey + ' ' + escapeLiveHtml(p.name) + '</span>';
         });
+        html += '</div></div>';
     }
-    html += '</div>';
     return html;
 }
 
@@ -607,7 +696,11 @@ function renderLiveMatch(match) {
     html += '</div>';
 
     // Stats section (only for live matches with report)
-    if (isLive && match.report) {
+    const hasSquads = match.squads && (
+        (match.squads.home && (match.squads.home.starting.length > 0 || match.squads.home.substitute.length > 0)) ||
+        (match.squads.away && (match.squads.away.starting.length > 0 || match.squads.away.substitute.length > 0))
+    );
+    if (isLive && (match.report || hasSquads || (match.substitutions && match.substitutions.length > 0))) {
         html += '<hr class="my-1" style="border-color:#e9ecef;">';
 
         // Yellow Cards
@@ -634,11 +727,12 @@ function renderLiveMatch(match) {
         html += '<div class="row">';
         html += '<div class="col-6"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">' + match.home_name + '</small>';
         if (match.goals && match.goals.length > 0) { html += '<div class="mb-1">' + renderGoals(match.goals, 'home') + '</div>'; }
-        html += renderSquad(match.squads.home) + '</div>';
+        html += renderSquad(match.squads.home, match.home_name) + '</div>';
         html += '<div class="col-6"><small class="text-muted d-block mb-1" style="font-size:0.65rem;">' + match.away_name + '</small>';
         if (match.goals && match.goals.length > 0) { html += '<div class="mb-1">' + renderGoals(match.goals, 'away') + '</div>'; }
-        html += renderSquad(match.squads.away) + '</div>';
+        html += renderSquad(match.squads.away, match.away_name) + '</div>';
         html += '</div>';
+        html += renderSubstitutionEvents(match.substitutions);
     }
 
     html += '</div></div></div>';
@@ -742,7 +836,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="col-4 text-truncate text-end"><strong><?= sanitize($m['away_name']) ?></strong></div>
             </div>
 
-            <?php if ($isLive && $m['report']): ?>
+            <?php if ($isLive && ($m['report'] || !empty($m['squads']['home']['starting']) || !empty($m['squads']['home']['substitute']) || !empty($m['squads']['away']['starting']) || !empty($m['squads']['away']['substitute']) || !empty($m['substitutions']))): ?>
             <hr class="my-1" style="border-color:#e9ecef;">
             <div class="stats-row"><span class="stat-label">Yellow Cards</span></div>
             <div class="stats-row">
@@ -773,6 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?= renderSquadPHP($m['squads']['away']) ?>
                 </div>
             </div>
+            <?= renderCoachSubstitutionEvents($m['substitutions'] ?? []) ?>
             <?php endif; ?>
         </div>
     </div>
