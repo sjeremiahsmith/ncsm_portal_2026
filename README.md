@@ -104,7 +104,7 @@ Render PostgreSQL database:
 - `NCSM_SEED_PASSWORD` — a unique password of at least 12 characters
 - `NCSM_SUPABASE_URL` — your Supabase project URL
 - `NCSM_SUPABASE_ANON_KEY` — optional public API key used in storage requests
-- `NCSM_SUPABASE_SERVICE_ROLE_KEY` — server-only key used to upload/delete images
+- `NCSM_SUPABASE_SERVICE_ROLE_KEY` — server-only legacy `service_role` JWT or newer `sb_secret_...` key used to upload/delete images
 - `NCSM_SUPABASE_BUCKET` — the public Supabase Storage bucket name for images
 
 ### Required deployment order

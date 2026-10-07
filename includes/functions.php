@@ -421,11 +421,15 @@ function supabaseStorageRequest($method, $objectPath, $body = null, array $heade
 
     $objectPath = ltrim((string)$objectPath, '/');
     $url = SUPABASE_URL . '/storage/v1/object/' . rawurlencode(SUPABASE_BUCKET) . '/' . str_replace('%2F', '/', rawurlencode($objectPath));
+    $serviceKey = SUPABASE_SERVICE_ROLE_KEY;
+    $isSecretApiKey = strpos($serviceKey, 'sb_secret_') === 0;
     $requestHeaders = array_merge([
-        'Authorization: Bearer ' . SUPABASE_SERVICE_ROLE_KEY,
-        'apikey: ' . (SUPABASE_ANON_KEY !== '' ? SUPABASE_ANON_KEY : SUPABASE_SERVICE_ROLE_KEY),
+        'apikey: ' . ($isSecretApiKey ? $serviceKey : (SUPABASE_ANON_KEY !== '' ? SUPABASE_ANON_KEY : $serviceKey)),
         'x-upsert: true',
     ], $headers);
+    if (!$isSecretApiKey) {
+        array_unshift($requestHeaders, 'Authorization: Bearer ' . $serviceKey);
+    }
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
