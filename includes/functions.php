@@ -226,10 +226,10 @@ function renderCoachLineupDiagram(array $squad, $teamName, $team) {
         }
         $html = '<section class="scorelineup-team ' . $teamClass . '"><h6>' . htmlspecialchars((string)$teamName, ENT_QUOTES, 'UTF-8') . ' Lineup</h6><div class="scorelineup-subs"><div>';
         foreach ($squad['starting'] ?? [] as $player) {
-            $html .= '<small>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</small>';
+            $html .= '<small>' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</small>';
         }
         foreach ($squad['substitute'] ?? [] as $player) {
-            $html .= '<small>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . ' (Sub)</small>';
+            $html .= '<small>' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . ' (Sub)</small>';
         }
         return $html . '</div></div></section>';
     }
@@ -240,9 +240,9 @@ function renderCoachLineupDiagram(array $squad, $teamName, $team) {
         $html .= '<div class="scorelineup-row ' . $rowClass . '">';
         foreach ($row as $position) {
             $player = $playersByPosition[$position] ?? null;
-            $html .= '<div class="scorelineup-slot"><span class="scorelineup-position">' . htmlspecialchars($position, ENT_QUOTES, 'UTF-8') . '</span>';
+            $html .= '<div class="scorelineup-slot">';
             $html .= $player
-                ? '<strong>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</strong>'
+                ? '<strong>' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</strong>'
                 : '<span class="scorelineup-empty">No player</span>';
             $html .= '</div>';
         }
@@ -253,7 +253,7 @@ function renderCoachLineupDiagram(array $squad, $teamName, $team) {
     if (!empty($squad['substitute'])) {
         $html .= '<div class="scorelineup-subs"><span>Substitutes</span><div>';
         foreach ($squad['substitute'] as $substitute) {
-            $html .= '<small>#' . (int)$substitute['jersey'] . ' ' . htmlspecialchars((string)$substitute['name'], ENT_QUOTES, 'UTF-8') . '</small>';
+            $html .= '<small>' . htmlspecialchars((string)$substitute['name'], ENT_QUOTES, 'UTF-8') . '</small>';
         }
         $html .= '</div></div>';
     }
@@ -277,9 +277,9 @@ function renderCoachMatchLineupDiagram(array $homeSquad, $homeName, array $awayS
                 $html .= '<div class="scorelineup-row ' . ['attack', 'midfield', 'defense', 'goalkeeper'][$index] . '">';
                 foreach ($row as $position) {
                     $player = $playersByPosition[$position] ?? null;
-                    $html .= '<div class="scorelineup-slot"><span class="scorelineup-position">' . htmlspecialchars($position, ENT_QUOTES, 'UTF-8') . '</span>';
+                    $html .= '<div class="scorelineup-slot">';
                     $html .= $player
-                        ? '<strong>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</strong>'
+                        ? '<strong>' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</strong>'
                         : '<span class="scorelineup-empty">No player</span>';
                     $html .= '</div>';
                 }
@@ -288,14 +288,14 @@ function renderCoachMatchLineupDiagram(array $homeSquad, $homeName, array $awayS
         } else {
             $html .= '<div class="scorelineup-legacy">';
             foreach ($squad['starting'] ?? [] as $player) {
-                $html .= '<small>#' . (int)$player['jersey'] . ' ' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</small>';
+                $html .= '<small>' . htmlspecialchars((string)$player['name'], ENT_QUOTES, 'UTF-8') . '</small>';
             }
             $html .= '</div>';
         }
         if (!empty($squad['substitute'])) {
             $html .= '<div class="scorelineup-subs"><span>Substitutes</span><div>';
             foreach ($squad['substitute'] as $substitute) {
-                $html .= '<small>#' . (int)$substitute['jersey'] . ' ' . htmlspecialchars((string)$substitute['name'], ENT_QUOTES, 'UTF-8') . '</small>';
+                $html .= '<small>' . htmlspecialchars((string)$substitute['name'], ENT_QUOTES, 'UTF-8') . '</small>';
             }
             $html .= '</div></div>';
         }
@@ -309,7 +309,6 @@ function renderCoachMatchLineupDiagram(array $homeSquad, $homeName, array $awayS
 
     return '<div class="scorelineup-match-pitch">'
         . $renderHalf($awaySquad, $awayName, 'away', [$goalkeeper, $defense, $midfield, $attack])
-        . '<div class="scorelineup-halfway"><span>HALFWAY</span></div>'
         . $renderHalf($homeSquad, $homeName, 'home', [$attack, $midfield, $defense, $goalkeeper])
         . '</div>';
 }

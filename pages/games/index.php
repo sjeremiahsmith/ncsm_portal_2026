@@ -443,24 +443,24 @@ function renderGoalsPHP($goals, $team = null) {
 .live-formation-subs > div { display: flex; flex-wrap: wrap; gap: 3px; }
 .live-formation-subs span { padding: 2px 4px; border: 1px solid #dee2e6; border-radius: 3px; }
 .live-substitution-events { padding: 4px 0; font-size: .65rem; }
-.scorelineup-match-pitch { display: grid; padding: 8px; border: 2px solid #e6f4e9; border-radius: 6px; background: repeating-linear-gradient(0deg, #27804a, #27804a 34px, #2d8952 34px, #2d8952 68px); color: #fff; }
-.scorelineup-half { padding: 5px 0; }
-.scorelineup-half h6 { margin: 0 0 4px; font-size: .7rem; font-weight: 700; text-align: center; }
-.scorelineup-half.away { border-bottom: 1px solid rgba(255,255,255,.75); }
-.scorelineup-half.home { border-top: 1px solid rgba(255,255,255,.75); }
-.scorelineup-row { display: grid; gap: 4px; margin: 4px 0; }
+.scorelineup-match-pitch { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 12px; border: 2px solid #e6f4e9; border-radius: 10px; background: radial-gradient(circle at center, rgba(255,255,255,.16) 0, rgba(255,255,255,.16) 10%, transparent 10.5%), linear-gradient(90deg, transparent calc(50% - 1px), rgba(255,255,255,.72) calc(50% - 1px), rgba(255,255,255,.72) calc(50% + 1px), transparent calc(50% + 1px)), repeating-linear-gradient(0deg, #27804a, #27804a 34px, #2d8952 34px, #2d8952 68px); color: #fff; overflow: hidden; }
+.scorelineup-half { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 4px; position: relative; z-index: 1; }
+.scorelineup-half h6 { margin: 0 0 2px; font-size: .72rem; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: .04em; }
+.scorelineup-row { display: grid; gap: 4px; margin: 0; }
 .scorelineup-row.attack, .scorelineup-row.midfield { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .scorelineup-row.defense { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.scorelineup-row.goalkeeper { grid-template-columns: minmax(0, 1fr); width: 26%; margin-right: auto; margin-left: auto; }
-.scorelineup-slot { display: flex; min-width: 0; min-height: 42px; flex-direction: column; justify-content: center; align-items: center; padding: 3px; border: 1px solid rgba(255,255,255,.55); border-radius: 4px; background: rgba(10,55,29,.48); text-align: center; overflow-wrap: anywhere; }
-.scorelineup-position { font-size: .5rem; font-weight: 700; }
-.scorelineup-slot strong, .scorelineup-empty { font-size: .58rem; }
-.scorelineup-halfway { padding: 2px 0; border-top: 1px dashed rgba(255,255,255,.7); border-bottom: 1px dashed rgba(255,255,255,.7); text-align: center; font-size: .48rem; font-weight: 700; }
-.scorelineup-legacy { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
-.scorelineup-legacy small, .scorelineup-subs small { padding: 2px 4px; border: 1px solid rgba(255,255,255,.45); border-radius: 3px; font-size: .56rem; }
-.scorelineup-subs { margin-top: 4px; text-align: center; font-size: .58rem; }
-.scorelineup-subs > span { display: block; margin-bottom: 2px; font-weight: 700; }
+.scorelineup-row.goalkeeper { grid-template-columns: minmax(0, 1fr); width: 26%; }
+.scorelineup-half.away .scorelineup-row.goalkeeper { margin-right: auto; }
+.scorelineup-half.home .scorelineup-row.goalkeeper { margin-left: auto; }
+.scorelineup-slot { display: flex; min-width: 0; min-height: 42px; justify-content: center; align-items: center; padding: 4px 5px; border: 1px solid rgba(255,255,255,.55); border-radius: 18px; background: rgba(10,55,29,.52); text-align: center; overflow-wrap: anywhere; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.scorelineup-slot strong, .scorelineup-empty { font-size: .58rem; line-height: 1.2; }
+.scorelineup-empty { opacity: .65; }
+.scorelineup-legacy { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.scorelineup-legacy small, .scorelineup-subs small { padding: 2px 6px; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; font-size: .56rem; }
+.scorelineup-subs { margin-top: 2px; text-align: center; font-size: .58rem; }
+.scorelineup-subs > span { display: block; margin-bottom: 2px; font-weight: 700; text-transform: uppercase; }
 .scorelineup-subs > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+@media (max-width: 575px) { .scorelineup-match-pitch { gap: 8px; padding: 8px; } .scorelineup-half h6 { font-size: .62rem; } .scorelineup-slot { min-height: 38px; padding: 3px; border-radius: 14px; } .scorelineup-slot strong, .scorelineup-empty, .scorelineup-legacy small, .scorelineup-subs small { font-size: .5rem; } }
 .score-substitution-events { margin-top: 6px; padding: 5px; border: 1px solid #dee2e6; border-radius: 4px; background: #fff; }
 .score-substitution-events h6 { margin-bottom: 3px; font-size: .65rem; font-weight: 700; }
 .score-substitution-event { padding: 2px 0; font-size: .62rem; }
@@ -685,7 +685,7 @@ function renderCoachMatchDiagram(homeSquad, homeName, awaySquad, awayName) {
         if (Object.keys(playersByPosition).length === 0) {
             html += '<div class="scorelineup-legacy">';
             (squad.starting || []).forEach(function(player) {
-                html += '<small>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</small>';
+                html += '<small>' + escapeLiveHtml(player.name) + '</small>';
             });
             html += '</div>';
         } else {
@@ -693,8 +693,8 @@ function renderCoachMatchDiagram(homeSquad, homeName, awaySquad, awayName) {
                 html += '<div class="scorelineup-row ' + row.kind + '">';
                 row.positions.forEach(function(position) {
                     var player = playersByPosition[position];
-                    html += '<div class="scorelineup-slot"><span class="scorelineup-position">' + escapeLiveHtml(position) + '</span>';
-                    html += player ? '<strong>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</strong>' : '<span class="scorelineup-empty">No player</span>';
+                    html += '<div class="scorelineup-slot">';
+                    html += player ? '<strong>' + escapeLiveHtml(player.name) + '</strong>' : '<span class="scorelineup-empty">No player</span>';
                     html += '</div>';
                 });
                 html += '</div>';
@@ -703,7 +703,7 @@ function renderCoachMatchDiagram(homeSquad, homeName, awaySquad, awayName) {
         if (squad.substitute && squad.substitute.length > 0) {
             html += '<div class="scorelineup-subs"><span>Substitutes</span><div>';
             squad.substitute.forEach(function(player) {
-                html += '<small>#' + player.jersey + ' ' + escapeLiveHtml(player.name) + '</small>';
+                html += '<small>' + escapeLiveHtml(player.name) + '</small>';
             });
             html += '</div></div>';
         }
@@ -717,7 +717,6 @@ function renderCoachMatchDiagram(homeSquad, homeName, awaySquad, awayName) {
             {kind: 'midfield', positions: midfield},
             {kind: 'attack', positions: attack}
         ])
-        + '<div class="scorelineup-halfway">HALFWAY</div>'
         + renderHalf(homeSquad, homeName, 'home', [
             {kind: 'attack', positions: attack},
             {kind: 'midfield', positions: midfield},
