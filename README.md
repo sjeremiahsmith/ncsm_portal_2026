@@ -295,3 +295,7 @@ after the first login and do not commit that value to the repository.
 ## License
 
 This project is developed for the Ministry of Youth & Sports, Republic of Liberia.
+
+## Container startup checks
+
+`docker-entrypoint.sh` runs `scripts/db_bootstrap.php` before Apache starts. It requires `DATABASE_URL` (or `NCSM_DATABASE_URL`), fails with a clear log message if it is missing, malformed or unreachable, and applies `database/schema.sql` only when core tables are missing (idempotent; existing data is untouched). `NCSM_RUN_SEED=true` still runs seeding afterwards.
